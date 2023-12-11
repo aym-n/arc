@@ -41,7 +41,7 @@ pub enum TokenKind {
     Class,
     Else,
     False,
-    Fun,
+    Fn,
     For,
     If,
     Nil,
@@ -63,7 +63,7 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq )]
 pub struct Token {
     pub kind: TokenKind,
     pub literal: Option<String>,

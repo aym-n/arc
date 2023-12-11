@@ -2,7 +2,6 @@ use crate::errors::error;
 
 use crate::tokens::Token;
 use crate::tokens::TokenKind;
-
 pub struct Lexer {
     input: String,
     start: usize,   //start of the current token
@@ -196,6 +195,37 @@ impl Iterator for Lexer {
             '\0' => {
                 Some(self.add_token(TokenKind::EOF))
             },
+
+            'a'..='z' | 'A'..='Z' | '_' => {
+                while self.current_char().is_alphanumeric() {
+                    self.advance();
+                }
+
+                let text = &self.input[self.start..self.current];
+
+                match text {
+                    "and" => Some(self.add_token(TokenKind::And)),
+                    "class" => Some(self.add_token(TokenKind::Class)),
+                    "else" => Some(self.add_token(TokenKind::Else)),
+                    "false" => Some(self.add_token(TokenKind::False)),
+                    "for" => Some(self.add_token(TokenKind::For)),
+                    "fn" => Some(self.add_token(TokenKind::Fn)),
+                    "if" => Some(self.add_token(TokenKind::If)),
+                    "nil" => Some(self.add_token(TokenKind::Nil)),
+                    "or" => Some(self.add_token(TokenKind::Or)),
+                    "print" => Some(self.add_token(TokenKind::Print)),
+                    "return" => Some(self.add_token(TokenKind::Return)),
+                    "super" => Some(self.add_token(TokenKind::Super)),
+                    "this" => Some(self.add_token(TokenKind::This)),
+                    "true" => Some(self.add_token(TokenKind::True)),
+                    "var" => Some(self.add_token(TokenKind::Var)),
+                    "while" => Some(self.add_token(TokenKind::While)),
+                    _ => {
+                        let literal = self.input[self.start..self.current].to_string();
+                        Some(self.add_token_with_literal(TokenKind::Identifier, literal))
+                    },
+                }
+            }
 
             _ => {
                 error(self.line, "Unexpected character.");
