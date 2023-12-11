@@ -34,8 +34,10 @@ pub enum TokenKind {
     Dot,        // .
     Semicolon,  // ;
 
+    Comment, // #
+
     //Keywords
-    And,
+    And, 
     Class,
     Else,
     False,
@@ -64,7 +66,6 @@ impl fmt::Display for Token {
 #[derive(Debug, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub lexeme: Option<String>,
     pub literal: Option<String>,
     pub line: usize,
 }
@@ -74,27 +75,24 @@ impl Default for Token {
         Token {
             kind: TokenKind::Illegal,
             literal: None,
-            lexeme: None,
             line: 0,
         }
     }
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, lexeme: String, line: usize) -> Self {
+    pub fn new(kind: TokenKind,line: usize) -> Self {
         Token {
             kind: kind,
             literal: None,
-            lexeme : Some(lexeme),
             line: line,
         }
     }
 
-    pub fn new_with_literal(kind: TokenKind, lexeme: String, literal: String, line: usize) -> Self {
+    pub fn new_with_literal(kind: TokenKind, literal: String, line: usize) -> Self {
         Token {
             kind,
             literal: Some(literal),
-            lexeme: Some(lexeme),
             line: line,
         }
     }

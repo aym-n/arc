@@ -21,11 +21,9 @@ fn eval(source: &str) -> String {
 fn repl() {
     loop {
         let mut input = String::new();
-        print!("arc> ");
+        print!(">");
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
-
-        println!("{}", input);
 
         let output = eval(&input);
 

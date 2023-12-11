@@ -39,7 +39,7 @@ impl Lexer {
             match self.current_char() {
                 ' ' | '\t' | '\r' => {
                     self.advance();
-                },
+                }
                 '\n' => {
                     self.line += 1;
                     self.advance();
@@ -79,7 +79,7 @@ impl Lexer {
         if self.is_at_end() {
             error(self.line, "Unterminated string.");
             return None;
-        }       
+        }
 
         self.advance();
 
@@ -88,21 +88,29 @@ impl Lexer {
         Some(self.add_token_with_literal(TokenKind::String, literal))
     }
 
+    fn comment(&mut self) -> Option<Token> {
+        while self.current_char() != '\n' && !self.is_at_end() {
+            self.skip_whitespace();
+            self.advance();
+        }
+
+        Some(self.add_token(TokenKind::Comment))
+
+    }
+
     fn add_token_with_literal(&mut self, kind: TokenKind, literal: String) -> Token {
-        let lexeme = self.input[self.start..self.current].to_string();
-        Token::new_with_literal(kind, lexeme, literal, self.line)
+        Token::new_with_literal(kind, literal, self.line)
     }
 
     fn add_token(&mut self, kind: TokenKind) -> Token {
-        let lexeme = self.input[self.start..self.current].to_string();
-        Token::new(kind, lexeme, self.line)
+        Token::new(kind, self.line)
     }
 
     fn is_at_end(&self) -> bool {
         self.current >= self.input.len()
     }
 
-    fn match_char(&mut self , expected: char) -> bool {
+    fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
             return false;
         }
@@ -112,13 +120,12 @@ impl Lexer {
         }
 
         self.current += 1;
-        true   
+        true
     }
 }
 
 impl Iterator for Lexer {
     type Item = Token;
-
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_at_end() {
             return None;
@@ -149,7 +156,7 @@ impl Iterator for Lexer {
                 } else {
                     Some(self.add_token(TokenKind::Bang))
                 }
-            },
+            }
 
             '=' => {
                 if self.current_char() == '=' {
@@ -158,7 +165,7 @@ impl Iterator for Lexer {
                 } else {
                     Some(self.add_token(TokenKind::Equal))
                 }
-            },
+            }
 
             '<' => {
                 if self.current_char() == '=' {
@@ -167,7 +174,7 @@ impl Iterator for Lexer {
                 } else {
                     Some(self.add_token(TokenKind::LessThan))
                 }
-            },
+            }
 
             '>' => {
                 if self.current_char() == '=' {
@@ -176,24 +183,19 @@ impl Iterator for Lexer {
                 } else {
                     Some(self.add_token(TokenKind::GreaterThan))
                 }
-            },
+            }
 
-            '/' => {
-                if self.current_char() == '/' {
-                    while self.current_char() != '\n' && !self.is_at_end() {
-                        self.advance();
-                    }
-                } else {
-                    return Some(self.add_token(TokenKind::Slash));
-                }
-                None
-            },
-            
+            '/' => Some(self.add_token(TokenKind::Slash)),
+
+            '#' => self.comment(),
+
             '"' => self.string(),
 
             '0'..='9' => self.number(),
 
-            '\0' => Some(self.add_token(TokenKind::EOF)), 
+            '\0' => {
+                Some(self.add_token(TokenKind::EOF))
+            },
 
             _ => {
                 error(self.line, "Unexpected character.");
