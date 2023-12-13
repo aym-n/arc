@@ -4,9 +4,5 @@
    {}
    >=
    //
-   # +++++----- 000  
-   
-   lksdjfkhlajlkdjfjslhjfkjh 
-   
-   #
+   # +++++----- 000#
    >

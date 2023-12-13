@@ -1,40 +1,60 @@
-use crate::tokens::Token;
-use crate::tokens::TokenKind;
-pub struct Binary {
-    pub left: Box<Expr>,
-    pub operator: Token,
-    pub right: Box<Expr>,
+use crate::error::*;
+use crate::token::*;
+
+pub enum Expr {
+    Binary(BinaryExpr),
+    Grouping(GroupingExpr),
+    Literal(LiteralExpr),
+    Unary(UnaryExpr),
 }
-impl Binary {
-    pub fn new(left: Box<Expr> , operator: Token , right: Box<Expr> ) -> Self {
-        left,
-        operator,
-        right,
+
+pub struct BinaryExpr {
+    left: Box<Expr>,
+    operator: Token,
+    right: Box<Expr>,
+}
+
+pub struct GroupingExpr {
+    expression: Box<Expr>,
+}
+
+pub struct LiteralExpr {
+    value: Object,
+}
+
+pub struct UnaryExpr {
+    operator: Token,
+    right: Box<Expr>,
+}
+
+pub trait ExprVisitor<T> {
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<T>;
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<T, LoxError>;
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<T, LoxError>;
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<T, LoxError>;
+}
+
+impl BinaryExpr {
+    fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxError> {
+        visitor.visit_binary_expr(self)
     }
 }
-pub struct Grouping {
-    pub expression: Box<Expr>,
-}
-impl Grouping {
-    pub fn new(expression: Box<Expr> ) -> Self {
-        expression,
+
+impl GroupingExpr {
+    fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxError> {
+        visitor.visit_grouping_expr(self)
     }
 }
-pub struct Literal {
-    pub value: i64,
-}
-impl Literal {
-    pub fn new(value: i64 ) -> Self {
-        value,
+
+impl LiteralExpr {
+    fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxError> {
+        visitor.visit_literal_expr(self)
     }
 }
-pub struct Unary {
-    pub operator: Token,
-    pub right: Box<Expr>,
-}
-impl Unary {
-    pub fn new(operator: Token , right: Box<Expr> ) -> Self {
-        operator,
-        right,
+
+impl UnaryExpr {
+    fn accept<T>(&self, visitor: &dyn ExprVisitor<T>) -> Result<T, LoxError> {
+        visitor.visit_unary_expr(self)
     }
 }
+

@@ -1,3 +1,5 @@
 /target
 .vscode/settings.json
-generate_ast/target
+
+#these files are generated on build
+src/expr.rs
