@@ -1,5 +1,7 @@
 use std::process::exit;
 
+// TODO: implement error handling with Result<T, E>
+
 pub fn error(line: usize, message: &str) {
     report(line, "", message);
 }

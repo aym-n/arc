@@ -1,15 +1,17 @@
 mod lexer;
 mod tokens;
 mod errors;
+mod ast_printer;
+mod expr;
 
 use std::io::Write;
 use tokens::Token;
-
 use crate::lexer::Lexer;
 
 fn eval(source: &str) -> String {
 
     let lexer = Lexer::new(source.to_string());
+
     //return a list of tokens
     let tokens: Vec<Token> = lexer.collect();
 
@@ -26,8 +28,8 @@ fn repl() {
         std::io::stdin().read_line(&mut input).unwrap();
 
         let output = eval(&input);
-
         println!("{}", output);
+
     }
 }
 
