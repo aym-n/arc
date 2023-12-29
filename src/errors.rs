@@ -1,12 +1,21 @@
 use std::process::exit;
 
 // TODO: implement error handling with Result<T, E>
-
-pub fn error(line: usize, message: &str) {
-    report(line, "", message);
+pub struct Error {
+    pub line: usize,
+    pub message: String,
 }
 
-fn report(line: usize, location: &str, message: &str) {
-    println!("[line {}] Error {}: {}", line, location, message);
-    exit(65);
+impl Error {
+    pub fn new(line: usize, message: String) -> Self {
+        Error {
+            line,
+            message,
+        }
+    }
+
+    pub fn report(&self) {
+        eprintln!("[line {}] Error: {}", self.line, self.message);
+        exit(65);
+    }
 }

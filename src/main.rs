@@ -1,12 +1,20 @@
+use std::io::Write;
+
 mod lexer;
+use crate::lexer::Lexer;
+
 mod tokens;
+use tokens::*;
+
 mod errors;
 mod ast_printer;
-mod expr;
+use crate::ast_printer::AstPrinter;
 
-use std::io::Write;
-use tokens::Token;
-use crate::lexer::Lexer;
+mod expr;
+use expr::*;
+
+mod parser;
+use parser::*;
 
 fn eval(source: &str) -> String {
 
@@ -33,10 +41,23 @@ fn repl() {
     }
 }
 
+fn run(){
+    let source = "-123 * (45.67) \0";
+    let lexer = Lexer::new(source.to_string());
+    let tokens: Vec<Token> = lexer.collect();
+    
+    let mut parser = Parser::new(tokens);
+    let expr = parser.parse().unwrap();
+
+    let ast_printer = AstPrinter;
+    let result = ast_printer.print(&expr);
+    println!("{}", result);
+}
+
 fn main(){
     match std::env::args().len() {
 
-        1 => repl(),
+        1 => run(),
         2 => {
             let args: Vec<String> = std::env::args().collect();
             let filename = &args[1];

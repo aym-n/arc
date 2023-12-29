@@ -1,7 +1,6 @@
-use crate::errors::error;
+use crate::errors::*;
+use crate::tokens::*;
 
-use crate::tokens::Token;
-use crate::tokens::TokenKind;
 pub struct Lexer {
     input: String,
     start: usize,   //start of the current token
@@ -62,9 +61,8 @@ impl Lexer {
         }
 
         let literal = self.input[self.start..self.current].to_string();
-        //parse into a double
-        literal.parse::<f64>().ok();
-        Some(self.add_token_with_literal(TokenKind::Number, literal))
+
+        Some(self.add_token_with_literal(TokenKind::Number, Object::Num(literal.parse::<f64>().unwrap())))
     }
 
     fn string(&mut self) -> Option<Token> {
@@ -76,7 +74,7 @@ impl Lexer {
         }
 
         if self.is_at_end() {
-            error(self.line, "Unterminated string.");
+            println!("{}: Unterminated string.", self.line);
             return None;
         }
 
@@ -84,7 +82,7 @@ impl Lexer {
 
         let literal = self.input[self.start + 1..self.current - 1].to_string();
 
-        Some(self.add_token_with_literal(TokenKind::String, literal))
+        Some(self.add_token_with_literal(TokenKind::String, Object::Str(literal)))
     }
 
     fn comment(&mut self) -> Option<Token> {
@@ -97,12 +95,12 @@ impl Lexer {
 
     }
 
-    fn add_token_with_literal(&mut self, kind: TokenKind, literal: String) -> Token {
-        Token::new_with_literal(kind, literal, self.line)
+    fn add_token(&self, kind: TokenKind) -> Token {
+        Token::new(kind, self.input[self.start..self.current].to_string(), None, self.line)
     }
 
-    fn add_token(&mut self, kind: TokenKind) -> Token {
-        Token::new(kind, self.line)
+    fn add_token_with_literal(&self, kind: TokenKind, literal: Object) -> Token {
+        Token::new(kind, self.input[self.start..self.current].to_string(), Some(literal), self.line)
     }
 
     fn is_at_end(&self) -> bool {
@@ -111,6 +109,7 @@ impl Lexer {
 
     fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
+            self.current += 1;
             return false;
         }
 
@@ -118,7 +117,6 @@ impl Lexer {
             return false;
         }
 
-        self.current += 1;
         true
     }
 }
@@ -222,13 +220,13 @@ impl Iterator for Lexer {
                     "while" => Some(self.add_token(TokenKind::While)),
                     _ => {
                         let literal = self.input[self.start..self.current].to_string();
-                        Some(self.add_token_with_literal(TokenKind::Identifier, literal))
+                        Some(self.add_token_with_literal(TokenKind::Identifier, Object::Str(literal)))
                     },
                 }
             }
 
             _ => {
-                error(self.line, "Unexpected character.");
+                println!("{}: Unexpected character: {}", self.line, self.current_char());
                 None
             }
         }

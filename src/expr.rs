@@ -29,7 +29,7 @@ pub struct GroupingExpr {
 }
 
 pub struct LiteralExpr {
-    pub value: Option<f64>,
+    pub value: Option<Object>,
 }
 
 pub struct UnaryExpr {

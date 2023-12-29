@@ -1,4 +1,6 @@
-#[derive(Debug, Default, PartialEq)]
+use std::fmt;
+
+#[derive(Debug, Default, PartialEq, Clone)]
 pub enum TokenKind {
     #[default]
     Illegal,
@@ -55,7 +57,27 @@ pub enum TokenKind {
     While,
 }
 
-use std::fmt;
+#[derive(Clone, Debug, PartialEq)]
+pub enum Object {
+    Num(f64),
+    Str(String),
+    Nil,
+    True,
+    False,
+}
+
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Object::Num(x) => write!(f, "{x}"),
+            Object::Str(x) => write!(f, "\"{x}\""),
+            Object::Nil => write!(f, "nil"),
+            Object::True => write!(f, "true"),
+            Object::False => write!(f, "false"),
+        }
+    }
+}
+
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -63,10 +85,11 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Debug, PartialEq )]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    pub literal: Option<String>,
+    pub lexeme: String,
+    pub literal: Option<Object>,
     pub line: usize,
 }
 
@@ -74,6 +97,7 @@ impl Default for Token {
     fn default() -> Self {
         Token {
             kind: TokenKind::Illegal,
+            lexeme: "".to_string(),
             literal: None,
             line: 0,
         }
@@ -81,19 +105,12 @@ impl Default for Token {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind,line: usize) -> Self {
-        Token {
-            kind: kind,
-            literal: None,
-            line: line,
-        }
-    }
-
-    pub fn new_with_literal(kind: TokenKind, literal: String, line: usize) -> Self {
+    pub fn new(kind: TokenKind, lexeme: String, literal: Option<Object>, line: usize) -> Self {
         Token {
             kind,
-            literal: Some(literal),
-            line: line,
+            lexeme,
+            literal,
+            line,
         }
     }
 }
