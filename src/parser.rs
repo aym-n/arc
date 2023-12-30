@@ -104,13 +104,13 @@ impl Parser{
     fn primary(&mut self) -> Result<Expr, String> {
         if self.match_token(vec![TokenKind::False]) {
             return Ok(Expr::Literal(LiteralExpr {
-                value: Some(Object::False),
+                value: Some(Object::Bool(false)),
             }));
         }
 
         if self.match_token(vec![TokenKind::True]) {
             return Ok(Expr::Literal(LiteralExpr {
-                value: Some(Object::True),
+                value: Some(Object::Bool(true)),
             }));
         }
 

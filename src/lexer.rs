@@ -1,4 +1,3 @@
-use crate::errors::*;
 use crate::tokens::*;
 
 pub struct Lexer {

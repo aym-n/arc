@@ -57,13 +57,73 @@ pub enum TokenKind {
     While,
 }
 
+use std::ops::*;
+use std::cmp::*;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Object {
     Num(f64),
     Str(String),
+    Bool(bool),
     Nil,
-    True,
-    False,
+    ArithmeticError,
+}
+
+impl Sub for Object {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        match (self, other) {
+            (Object::Num(x), Object::Num(y)) => Object::Num(x - y),
+            _ => Object::ArithmeticError,
+        }
+    }
+}
+
+impl Mul for Object {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self {
+        match (self, other) {
+            (Object::Num(x), Object::Num(y)) => Object::Num(x * y),
+            _ => Object::ArithmeticError,
+        }
+    }
+}
+
+impl Div for Object {
+    type Output = Self;
+
+    fn div(self, other: Self) -> Self {
+        match (self, other) {
+            (Object::Num(x), Object::Num(y)) => Object::Num(x / y),
+            _ => Object::ArithmeticError,
+        }
+    }
+}
+
+impl Add for Object {
+    type Output = Object;
+
+    fn add(self, other: Self) -> Object {
+        match (self, other) {
+            (Object::Num(left), Object::Num(right)) => Object::Num(left + right),
+            (Object::Str(left), Object::Str(right)) => Object::Str(format!("{}{}", left, right)),
+            _ => Object::ArithmeticError,
+        }
+    }
+}
+
+impl PartialOrd for Object {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {   
+            (Object::Nil, Object::Nil) => Some(Ordering::Equal),
+            (Object::Nil , _) => None,
+            (Object::Num(x), Object::Num(y)) => x.partial_cmp(y),
+            (Object::Str(x), Object::Str(y)) => x.partial_cmp(y),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for Object {
@@ -72,8 +132,8 @@ impl fmt::Display for Object {
             Object::Num(x) => write!(f, "{x}"),
             Object::Str(x) => write!(f, "\"{x}\""),
             Object::Nil => write!(f, "nil"),
-            Object::True => write!(f, "true"),
-            Object::False => write!(f, "false"),
+            Object::Bool(x) => write!(f, "{x}"),
+            Object::ArithmeticError => panic!("Arithmetic Error"),
         }
     }
 }

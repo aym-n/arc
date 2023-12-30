@@ -11,10 +11,11 @@ mod ast_printer;
 use crate::ast_printer::AstPrinter;
 
 mod expr;
-use expr::*;
 
 mod parser;
 use parser::*;
+
+mod interpreter;
 
 fn eval(source: &str) -> String {
 
