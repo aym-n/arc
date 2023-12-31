@@ -87,10 +87,6 @@ impl ExprVisitor<Object> for Interpreter{
             _ => {Object::ArithmeticError}
         };
 
-        if let Object::ArithmeticError = result {
-            panic!("Arithmetic Error");
-        }
-
         result
     }
 } 
@@ -101,10 +97,8 @@ impl Interpreter {
     }
 
     pub fn interpret(&self, expr: &Expr){
-        match self.evaluate(expr) {
-            Object::ArithmeticError => panic!("Arithmetic Error"),
-            v => println!("{}", v),
-        }
+        let result = self.evaluate(expr);
+        println!("{}", result);
     }
 
     fn evaluate(&self, expr: &Expr) -> Object {

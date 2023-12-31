@@ -38,7 +38,8 @@ fn repl() {
         std::io::stdin().read_line(&mut input).unwrap();
 
         let lexer = Lexer::new(input.to_string());
-        let tokens: Vec<Token> = lexer.collect();
+        let mut tokens: Vec<Token> = lexer.collect();
+        tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
         
         let mut parser = Parser::new(tokens);
         let expr = parser.parse().unwrap();
@@ -50,7 +51,7 @@ fn repl() {
 }
 
 fn run(){
-    let source = "4/0\0";
+    let source = "4+4 \0";
     let lexer = Lexer::new(source.to_string());
     let tokens: Vec<Token> = lexer.collect();
     
@@ -64,7 +65,7 @@ fn run(){
 fn main(){
     match std::env::args().len() {
 
-        1 => run(),
+        1 => repl(),
         2 => {
             let args: Vec<String> = std::env::args().collect();
             let filename = &args[1];

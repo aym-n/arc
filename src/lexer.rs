@@ -95,7 +95,7 @@ impl Lexer {
     }
 
     fn add_token(&self, kind: TokenKind) -> Token {
-        Token::new(kind, self.input[self.start..self.current].to_string(), None, self.line)
+        Token::new(kind, self.input[self.start..self.current - 1].to_string(), None, self.line)
     }
 
     fn add_token_with_literal(&self, kind: TokenKind, literal: Object) -> Token {

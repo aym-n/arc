@@ -73,7 +73,7 @@ impl fmt::Display for Object {
             Object::Str(x) => write!(f, "\"{x}\""),
             Object::Nil => write!(f, "nil"),
             Object::Bool(x) => write!(f, "{x}"),
-            Object::ArithmeticError => panic!("Arithmetic Error"),
+            Object::ArithmeticError => write!(f, "Arithmetic Error"),
         }
     }
 }
