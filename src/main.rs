@@ -16,6 +16,7 @@ mod parser;
 use parser::*;
 
 mod interpreter;
+use interpreter::Interpreter;
 
 fn eval(source: &str) -> String {
 
@@ -36,23 +37,28 @@ fn repl() {
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
 
-        let output = eval(&input);
-        println!("{}", output);
+        let lexer = Lexer::new(input.to_string());
+        let tokens: Vec<Token> = lexer.collect();
+        
+        let mut parser = Parser::new(tokens);
+        let expr = parser.parse().unwrap();
+    
+        let interpreter = Interpreter::new();
+        interpreter.interpret(&expr);
 
     }
 }
 
 fn run(){
-    let source = "-123 * (45.67) \0";
+    let source = "4/0\0";
     let lexer = Lexer::new(source.to_string());
     let tokens: Vec<Token> = lexer.collect();
     
     let mut parser = Parser::new(tokens);
     let expr = parser.parse().unwrap();
 
-    let ast_printer = AstPrinter;
-    let result = ast_printer.print(&expr);
-    println!("{}", result);
+    let interpreter = Interpreter::new();
+    interpreter.interpret(&expr);
 }
 
 fn main(){
