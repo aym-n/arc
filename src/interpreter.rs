@@ -1,121 +1,146 @@
+use crate::errors::*;
 use crate::expr::*;
+use crate::stmt::*;
 use crate::tokens::*;
 
 pub struct Interpreter {}
 
-impl ExprVisitor<Object> for Interpreter{
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Object{
-        expr.value.clone().unwrap()
+impl StmtVisitor<()> for Interpreter {
+    fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), Error> {
+        let value = self.evaluate(&stmt.expression)?;
+        println!("{}", value);
+        Ok(())
     }
 
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Object{
-        self.evaluate(&expr.expression)
-    }       
+    fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), Error> {
+        self.evaluate(&stmt.expression)?;
+        Ok(())
+    }
+}
 
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Object{
-        let right = self.evaluate(&expr.right);
+impl ExprVisitor<Object> for Interpreter {
+    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<Object, Error> {
+        Ok(expr.value.clone().unwrap())
+    }
+
+    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<Object, Error> {
+        Ok(self.evaluate(&expr.expression)?)
+    }
+
+    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<Object, Error> {
+        let right = self.evaluate(&expr.right)?;
 
         match expr.operator.kind {
             TokenKind::Minus => {
                 if let Object::Num(x) = right {
-                    return Object::Num(-x);
+                    return Ok(Object::Num(-x));
                 }
-                Object::Nil
+                Ok(Object::Nil)
             }
             TokenKind::Bang => {
-                return Object::Bool(!self.is_truthy(right));
+                return Ok(Object::Bool(!self.is_truthy(right)));
             }
-            _ => {Object::Nil}
-        } 
+            _ => Err(Error::new(
+                expr.operator.line,
+                format!("Expect unary operator. Got {}", expr.operator.lexeme),
+            )),
+        }
     }
 
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Object{
-        let left = self.evaluate(&expr.left);
-        let right = self.evaluate(&expr.right);
+    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<Object, Error> {
+        let left = self.evaluate(&expr.left)?;
+        let right = self.evaluate(&expr.right)?;
         let operator = &expr.operator.kind;
 
-        let result = match(left , right) {
-            (Object::Num(left), Object::Num(right)) => {
-                match operator {
-                    TokenKind::Minus => Object::Num(left - right),
-                    TokenKind::Slash => {
-                        if right == 0.0 {
-                            Object::ArithmeticError
-                        } else {
-                            Object::Num(left / right)
-                        }
+        let result = match (left, right) {
+            (Object::Num(left), Object::Num(right)) => match operator {
+                TokenKind::Minus => Object::Num(left - right),
+                TokenKind::Slash => {
+                    if right == 0.0 {
+                        Object::ArithmeticError
+                    } else {
+                        Object::Num(left / right)
                     }
-                    TokenKind::Asterisk => Object::Num(left * right),
-                    TokenKind::Plus => Object::Num(left + right),
-                    TokenKind::GreaterThan => Object::Bool(left > right),
-                    TokenKind::GreaterThanEqual => Object::Bool(left >= right),
-                    TokenKind::LessThan => Object::Bool(left < right),
-                    TokenKind::LessThanEqual => Object::Bool(left <= right),
-                    TokenKind::NotEqual => Object::Bool(left != right),
-                    TokenKind::EqualEqual => Object::Bool(left == right),
-                    _ => {Object::ArithmeticError}
                 }
+                TokenKind::Asterisk => Object::Num(left * right),
+                TokenKind::Plus => Object::Num(left + right),
+                TokenKind::GreaterThan => Object::Bool(left > right),
+                TokenKind::GreaterThanEqual => Object::Bool(left >= right),
+                TokenKind::LessThan => Object::Bool(left < right),
+                TokenKind::LessThanEqual => Object::Bool(left <= right),
+                TokenKind::NotEqual => Object::Bool(left != right),
+                TokenKind::EqualEqual => Object::Bool(left == right),
+                _ => Object::ArithmeticError,
             },
 
-            (Object::Str(left), Object::Str(right)) => {
-                match operator {
-                    TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
-                    TokenKind::NotEqual => Object::Bool(left != right),
-                    TokenKind::EqualEqual => Object::Bool(left == right),
-                    _ => {Object::ArithmeticError}
-                }
+            (Object::Str(left), Object::Str(right)) => match operator {
+                TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
+                TokenKind::NotEqual => Object::Bool(left != right),
+                TokenKind::EqualEqual => Object::Bool(left == right),
+                _ => Object::ArithmeticError,
             },
 
-            (Object::Str(left), Object::Num(right)) => {
-                match operator {
-                    TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
-                    _ => {Object::ArithmeticError}
-                }
+            (Object::Str(left), Object::Num(right)) => match operator {
+                TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
+                _ => Object::ArithmeticError,
             },
 
-            (Object::Num(left), Object::Str(right)) => {
-                match operator {
-                    TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
-                    _ => {Object::ArithmeticError}
-                }
+            (Object::Num(left), Object::Str(right)) => match operator {
+                TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
+                _ => Object::ArithmeticError,
             },
 
-            (Object::Bool(left), Object::Bool(right)) => {
-                match operator {
-                    TokenKind::NotEqual => Object::Bool(left != right),
-                    TokenKind::EqualEqual => Object::Bool(left == right),
-                    _ => {Object::ArithmeticError}
-                }
+            (Object::Bool(left), Object::Bool(right)) => match operator {
+                TokenKind::NotEqual => Object::Bool(left != right),
+                TokenKind::EqualEqual => Object::Bool(left == right),
+                _ => Object::ArithmeticError,
             },
 
-            (Object::Nil, Object::Nil) => {
-                match operator {
-                    TokenKind::NotEqual => Object::Bool(false),
-                    TokenKind::EqualEqual => Object::Bool(true),
-                    _ => {Object::ArithmeticError}
-                }
+            (Object::Nil, Object::Nil) => match operator {
+                TokenKind::NotEqual => Object::Bool(false),
+                TokenKind::EqualEqual => Object::Bool(true),
+                _ => Object::ArithmeticError,
             },
 
-            (Object::Nil, _) => Object::Bool(false),
+            (Object::Nil, _) => match operator {
+                TokenKind::NotEqual => Object::Bool(true),
+                TokenKind::EqualEqual => Object::Bool(false),
+                _ => Object::ArithmeticError,
+            },
 
-            _ => {Object::ArithmeticError}
+            _ => Object::ArithmeticError,
         };
 
-        result
+        if result == Object::ArithmeticError {
+            Err(Error::new(expr.operator.line, format!("Arithmetic error")))
+        } else {
+            Ok(result)
+        }
     }
-} 
+}
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter{}
+        Interpreter {}
     }
 
-    pub fn interpret(&self, expr: &Expr){
-        let result = self.evaluate(expr);
-        println!("{} \n", result);
+    fn execute(&self, stmt: &Stmt) -> Result<(), Error> {
+        stmt.accept(self)
     }
 
-    fn evaluate(&self, expr: &Expr) -> Object {
+    pub fn interpret(&self, statements: &[Stmt]) -> bool {
+        let mut success = true;
+        for statment in statements {
+            if let Err(e) = self.execute(statment) {
+                e.report();
+                success = true;
+                break;
+            }
+        }
+        success
+    }
+
+    fn evaluate(&self, expr: &Expr) -> Result<Object, Error> {
         expr.accept(self)
     }
 
@@ -128,7 +153,7 @@ impl Interpreter {
     }
 }
 
-#[cfg(test)]    
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -148,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn test_subtraction(){
+    fn test_subtraction() {
         let expr = BinaryExpr {
             left: Box::new(Expr::Literal(LiteralExpr {
                 value: Some(Object::Num(125.0)),
@@ -355,7 +380,6 @@ mod tests {
         let result = interpreter.visit_binary_expr(&expr);
 
         assert_eq!(result, Object::Bool(true));
-
     }
 
     #[test]
@@ -464,7 +488,7 @@ mod tests {
     }
 
     #[test]
-    fn test_equal_equal_nil(){
+    fn test_equal_equal_nil() {
         // True case
         let expr = BinaryExpr {
             left: Box::new(Expr::Literal(LiteralExpr {

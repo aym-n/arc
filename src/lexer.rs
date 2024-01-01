@@ -2,8 +2,8 @@ use crate::tokens::*;
 
 pub struct Lexer {
     input: String,
-    start: usize,   //start of the current token
-    current: usize, //current position in input
+    start: usize,
+    current: usize,
     line: usize,
 }
 
@@ -15,6 +15,22 @@ impl Lexer {
             current: 0,
             line: 1,
         }
+    }
+
+    pub fn scan_tokens(&mut self) -> Vec<Token> {
+        let mut tokens: Vec<Token> = Vec::new();
+
+        while !self.is_at_end() {
+            self.start = self.current;
+            let token = self.next();
+            if let Some(token) = token {
+                tokens.push(token);
+            }
+        }
+
+        tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, self.line));
+
+        tokens
     }
 
     pub fn current_char(&self) -> char {
@@ -73,7 +89,7 @@ impl Lexer {
         }
 
         if self.is_at_end() {
-            println!("{}: Unterminated string.", self.line);
+            eprintln!("{}: Unterminated string.", self.line);
             return None;
         }
 
@@ -225,7 +241,7 @@ impl Iterator for Lexer {
             }
 
             _ => {
-                println!("{}: Unexpected character: {}", self.line, self.current_char());
+                eprintln!("{}: Unexpected character: {}", self.line, self.current_char());
                 None
             }
         }

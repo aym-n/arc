@@ -1,30 +1,50 @@
-use crate::tokens::*;
+use crate::errors::*;
 use crate::expr::*;
+use crate::tokens::*;
+use crate::stmt::*;
 
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
 }
 
-impl Parser{
-    
-
+impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Parser {
-            tokens,
-            current: 0,
+        Parser { tokens, current: 0 }
+    }
+
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
+        let mut statements: Vec<Stmt> = Vec::new();
+        while !self.is_at_end(){
+            statements.push(self.statment()?);
         }
+        Ok(statements)
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        self.expression().ok()
-    }
-
-    fn expression(&mut self) -> Result<Expr, String> {
+    fn expression(&mut self) -> Result<Expr, Error> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Result<Expr, String> {
+    fn statment(&mut self) -> Result<Stmt, Error> {
+        if self.match_token(vec![TokenKind::Print]) {
+            return self.print_statement();
+        }
+        self.expression_statement()
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, Error> {
+        let value = self.expression()?;
+        self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Print(PrintStmt { expression: value }))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, Error> {
+        let value = self.expression()?;
+        self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Expression(ExpressionStmt { expression: value }))
+    }
+
+    fn equality(&mut self) -> Result<Expr, Error> {
         let mut expr = self.comparison()?;
 
         while self.match_token(vec![TokenKind::NotEqual, TokenKind::EqualEqual]) {
@@ -40,10 +60,15 @@ impl Parser{
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr, String> {
+    fn comparison(&mut self) -> Result<Expr, Error> {
         let mut expr = self.term()?;
 
-        while self.match_token(vec![TokenKind::GreaterThan, TokenKind::GreaterThanEqual, TokenKind::LessThan, TokenKind::LessThanEqual]) {
+        while self.match_token(vec![
+            TokenKind::GreaterThan,
+            TokenKind::GreaterThanEqual,
+            TokenKind::LessThan,
+            TokenKind::LessThanEqual,
+        ]) {
             let operator = self.previous();
             let right = self.term()?;
             expr = Expr::Binary(BinaryExpr {
@@ -56,7 +81,7 @@ impl Parser{
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr, String> {
+    fn term(&mut self) -> Result<Expr, Error> {
         let mut expr = self.factor()?;
 
         while self.match_token(vec![TokenKind::Minus, TokenKind::Plus]) {
@@ -72,7 +97,7 @@ impl Parser{
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr, String> {
+    fn factor(&mut self) -> Result<Expr, Error> {
         let mut expr = self.unary()?;
 
         while self.match_token(vec![TokenKind::Slash, TokenKind::Asterisk]) {
@@ -88,7 +113,7 @@ impl Parser{
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr, String> {
+    fn unary(&mut self) -> Result<Expr, Error> {
         if self.match_token(vec![TokenKind::Bang, TokenKind::Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
@@ -101,7 +126,7 @@ impl Parser{
         Ok(self.primary()?)
     }
 
-    fn primary(&mut self) -> Result<Expr, String> {
+    fn primary(&mut self) -> Result<Expr, Error> {
         if self.match_token(vec![TokenKind::False]) {
             return Ok(Expr::Literal(LiteralExpr {
                 value: Some(Object::Bool(false)),
@@ -134,7 +159,10 @@ impl Parser{
             }));
         }
 
-        Err(format!("Expect expression."))
+        Err(Error::new(
+            self.peek().line,
+            format!("Expect expression. Got {}", self.peek().lexeme),
+        ))
     }
 
     fn match_token(&mut self, kinds: Vec<TokenKind>) -> bool {
@@ -172,25 +200,31 @@ impl Parser{
     fn previous(&self) -> Token {
         self.tokens.get(self.current - 1).unwrap().clone()
     }
-    
-    fn consume(&mut self, kind: TokenKind, message: &str) -> Result<Token, String> {
+
+    fn consume(&mut self, kind: TokenKind, message: &str) -> Result<Token, Error> {
         if self.check(kind) {
             return Ok(self.advance());
         }
 
-        Err(format!("{}: {}", self.peek().line, message))
+        Err(Error::new(self.peek().line, message.to_string()))
     }
 
     fn synchronize(&mut self) {
         self.advance();
-
         while !self.is_at_end() {
             if self.previous().kind == TokenKind::Semicolon {
                 return;
             }
 
             match self.peek().kind {
-                TokenKind::Class | TokenKind::Fn | TokenKind::Var | TokenKind::For | TokenKind::If | TokenKind::While | TokenKind::Print | TokenKind::Return => {
+                TokenKind::Class
+                | TokenKind::Fn
+                | TokenKind::Var
+                | TokenKind::For
+                | TokenKind::If
+                | TokenKind::While
+                | TokenKind::Print
+                | TokenKind::Return => {
                     return;
                 }
                 _ => {}
@@ -200,4 +234,3 @@ impl Parser{
         }
     }
 }
-

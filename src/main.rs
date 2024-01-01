@@ -7,8 +7,10 @@ mod tokens;
 use tokens::*;
 
 mod errors;
-mod ast_printer;
-use crate::ast_printer::AstPrinter;
+use crate::errors::*;
+
+// mod ast_printer;
+// use crate::ast_printer::AstPrinter;
 
 mod expr;
 
@@ -18,16 +20,22 @@ use parser::*;
 mod interpreter;
 use interpreter::Interpreter;
 
-fn eval(source: &str) -> String {
+mod stmt;
 
+fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
+    let mut tokens: Vec<Token> = lexer.collect();
+    tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
 
-    //return a list of tokens
-    let tokens: Vec<Token> = lexer.collect();
+    let mut parser = Parser::new(tokens);
+    let statements = parser.parse()?;
 
-    let result: String = tokens.iter().map(|token| token.to_string()).collect::<Vec<String>>().join("\n");
+    let interpreter = Interpreter::new();
+    if interpreter.interpret(&statements) {
+        std::process::exit(1);
+    }
 
-    result
+    Ok(())
 }
 
 fn repl() {
@@ -37,42 +45,19 @@ fn repl() {
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
 
-        let lexer = Lexer::new(input.to_string());
-        let mut tokens: Vec<Token> = lexer.collect();
-        tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
-        
-        let mut parser = Parser::new(tokens);
-        let expr = parser.parse().unwrap();
-    
-        let interpreter = Interpreter::new();
-        interpreter.interpret(&expr);
-
+        eval(&input);
     }
 }
 
-fn run(){
-    let source = "4+4 \0";
-    let lexer = Lexer::new(source.to_string());
-    let tokens: Vec<Token> = lexer.collect();
-    
-    let mut parser = Parser::new(tokens);
-    let expr = parser.parse().unwrap();
-
-    let interpreter = Interpreter::new();
-    interpreter.interpret(&expr);
-}
-
-fn main(){
+fn main() {
     match std::env::args().len() {
-
         1 => repl(),
         2 => {
             let args: Vec<String> = std::env::args().collect();
             let filename = &args[1];
             let source = std::fs::read_to_string(filename).unwrap();
-            let output = eval(&source);
-            println!("{}", output);
-        },
+            eval(&source);
+        }
         _ => {
             println!("Usage: arc [filename]");
             std::process::exit(1);
