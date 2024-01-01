@@ -70,7 +70,7 @@ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Object::Num(x) => write!(f, "{x}"),
-            Object::Str(x) => write!(f, "\"{x}\""),
+            Object::Str(x) => write!(f, "{x}"),
             Object::Nil => write!(f, "nil"),
             Object::Bool(x) => write!(f, "{x}"),
             Object::ArithmeticError => write!(f, "Arithmetic Error"),

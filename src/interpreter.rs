@@ -66,6 +66,20 @@ impl ExprVisitor<Object> for Interpreter{
                 }
             },
 
+            (Object::Str(left), Object::Num(right)) => {
+                match operator {
+                    TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
+                    _ => {Object::ArithmeticError}
+                }
+            },
+
+            (Object::Num(left), Object::Str(right)) => {
+                match operator {
+                    TokenKind::Plus => Object::Str(format!("{}{}", left, right)),
+                    _ => {Object::ArithmeticError}
+                }
+            },
+
             (Object::Bool(left), Object::Bool(right)) => {
                 match operator {
                     TokenKind::NotEqual => Object::Bool(left != right),
@@ -98,7 +112,7 @@ impl Interpreter {
 
     pub fn interpret(&self, expr: &Expr){
         let result = self.evaluate(expr);
-        println!("{}", result);
+        println!("{} \n", result);
     }
 
     fn evaluate(&self, expr: &Expr) -> Object {
