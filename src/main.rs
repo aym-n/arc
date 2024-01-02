@@ -22,6 +22,8 @@ use interpreter::Interpreter;
 
 mod stmt;
 
+mod enviroment;
+
 fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
     let mut tokens: Vec<Token> = lexer.collect();
@@ -31,7 +33,7 @@ fn eval(source: &str) -> Result<(), Error> {
     let statements = parser.parse()?;
 
     let interpreter = Interpreter::new();
-    if interpreter.interpret(&statements) {
+    if !interpreter.interpret(&statements) {
         std::process::exit(1);
     }
 
@@ -45,7 +47,7 @@ fn repl() {
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
 
-        eval(&input);
+        let _ = eval(&input);
     }
 }
 
@@ -56,11 +58,11 @@ fn main() {
             let args: Vec<String> = std::env::args().collect();
             let filename = &args[1];
             let source = std::fs::read_to_string(filename).unwrap();
-            eval(&source);
+            let _ = eval(&source);
         }
         _ => {
-            println!("Usage: arc [filename]");
-            std::process::exit(1);
+            println!("Usage: Arc [Filename]");
+            std::process::exit(64);
         }
     }
 }

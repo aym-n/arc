@@ -17,6 +17,8 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
             "Grouping : Box<Expr> expression".to_string(),
             "Literal  : Option<Object> value".to_string(),
             "Unary    : Token operator, Box<Expr> right".to_string(),
+            "Variable : Token name".to_string(),
+
         ],
         &vec![
             "crate::tokens::*".to_string(),
@@ -30,10 +32,12 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
         &vec![
             "Expression : Expr expression".to_string(),
             "Print      : Expr expression".to_string(),
+            "Var        : Token name, Option<Expr> initializer".to_string(),
         ],
         &vec![
             "crate::expr::Expr".to_string(),
             "crate::errors::*".to_string(),
+            "crate::tokens::*".to_string(),
         ],
     )?;
     Ok(())

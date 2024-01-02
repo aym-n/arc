@@ -1,9 +1,13 @@
+use crate::enviroment::Environment;
 use crate::errors::*;
 use crate::expr::*;
 use crate::stmt::*;
 use crate::tokens::*;
+use std::cell::RefCell;
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    environment: RefCell<Environment>,
+}
 
 impl StmtVisitor<()> for Interpreter {
     fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), Error> {
@@ -14,6 +18,19 @@ impl StmtVisitor<()> for Interpreter {
 
     fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), Error> {
         self.evaluate(&stmt.expression)?;
+        Ok(())
+    }
+
+    fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), Error> {
+        let value = if let Some(expr) = &stmt.initializer {
+            self.evaluate(expr)?
+        } else {
+            Object::Nil
+        };
+
+        self.environment
+            .borrow_mut()
+            .define(stmt.name.lexeme.clone(), value);
         Ok(())
     }
 }
@@ -117,11 +134,17 @@ impl ExprVisitor<Object> for Interpreter {
             Ok(result)
         }
     }
+
+    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, Error> {
+        self.environment.borrow().get(&expr.name)
+    }
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter {}
+        Interpreter {
+            environment: RefCell::new(Environment::new()),
+        }
     }
 
     fn execute(&self, stmt: &Stmt) -> Result<(), Error> {
@@ -133,7 +156,7 @@ impl Interpreter {
         for statment in statements {
             if let Err(e) = self.execute(statment) {
                 e.report();
-                success = true;
+                success = false;
                 break;
             }
         }
@@ -168,8 +191,8 @@ mod tests {
 
         let interpreter = Interpreter::new();
         let result = interpreter.visit_unary_expr(&expr);
-
-        assert_eq!(result, Object::Num(-123.0));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Num(-123.0)));
     }
 
     #[test]
@@ -187,7 +210,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Num(2.0));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Num(2.0)));
     }
 
     #[test]
@@ -202,7 +226,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_unary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
     #[test]
@@ -220,7 +245,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Num(150.0));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Num(150.0)));
     }
 
     #[test]
@@ -238,7 +264,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Num(1.5));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Num(1.5)));
     }
 
     #[test]
@@ -256,7 +283,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Num(25.0));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Num(25.0)));
     }
 
     #[test]
@@ -274,7 +302,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Str("HelloWorld".to_string()));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Str("HelloWorld".to_string())));
     }
 
     #[test]
@@ -293,7 +322,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
 
         // False case
         let expr = BinaryExpr {
@@ -309,7 +339,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
     #[test]
@@ -328,7 +359,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
 
         //False case
         let expr = BinaryExpr {
@@ -344,7 +376,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
     #[test]
@@ -363,7 +396,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
 
         //True case
         let expr = BinaryExpr {
@@ -379,7 +413,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
     }
 
     #[test]
@@ -398,7 +433,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
 
         //False case
         let expr = BinaryExpr {
@@ -414,7 +450,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
     #[test]
@@ -433,7 +470,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
 
         // False case
         let expr = BinaryExpr {
@@ -449,7 +487,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
     #[test]
@@ -468,7 +507,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
 
         // False case
         let expr = BinaryExpr {
@@ -484,7 +524,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
     }
 
     #[test]
@@ -503,7 +544,8 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(true));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(true)));
 
         // False case
         let expr = BinaryExpr {
@@ -519,6 +561,77 @@ mod tests {
         let interpreter = Interpreter::new();
         let result = interpreter.visit_binary_expr(&expr);
 
-        assert_eq!(result, Object::Bool(false));
+        assert!(result.is_ok());
+        assert_eq!(result.ok(), Some(Object::Bool(false)));
+    }
+
+    #[test]
+    fn test_var_stmt() {
+        let name = Token::new(TokenKind::Identifier, "foo".to_string(), None, 1);
+        let stmt = VarStmt {
+            name,
+            initializer: Some(Expr::Literal(LiteralExpr {
+                value: Some(Object::Num(1.0)),
+            })),
+        };
+
+        let interpreter = Interpreter::new();
+        let result = interpreter.visit_var_stmt(&stmt);
+
+        let _ = interpreter.visit_var_stmt(&stmt);
+        assert!(result.is_ok());
+        assert_eq!(
+            interpreter.environment.borrow().get(&stmt.name).ok(),
+            Some(Object::Num(1.0))
+        );
+    }
+
+    #[test]
+    fn test_var_stmt_no_initializer() {
+        let name = Token::new(TokenKind::Identifier, "foo".to_string(), None, 1);
+        let stmt = VarStmt {
+            name,
+            initializer: None,
+        };
+
+        let interpreter = Interpreter::new();
+        let result = interpreter.visit_var_stmt(&stmt);
+
+        let _ = interpreter.visit_var_stmt(&stmt);
+        assert!(result.is_ok());
+        assert_eq!(
+            interpreter.environment.borrow().get(&stmt.name).ok(),
+            Some(Object::Nil)
+        );
+    }
+
+    #[test]
+    fn test_variable_expr() {
+        let name = Token::new(TokenKind::Identifier, "foo".to_string(), None, 1);
+        let expr = VariableExpr { name: name.clone() };
+
+        let interpreter = Interpreter::new();
+        let var = VarStmt {
+            name: name,
+            initializer: Some(Expr::Literal(LiteralExpr {
+                value: Some(Object::Num(1.0)),
+            })),
+        };
+
+        assert!(interpreter.visit_var_stmt(&var).is_ok());
+        assert_eq!(
+            interpreter.visit_variable_expr(&expr).ok(),
+            Some(Object::Num(1.0))
+        );
+    }
+
+    #[test]
+    fn test_variable_expr_undefined() {
+        let name = Token::new(TokenKind::Identifier, "foo".to_string(), None, 1);
+        let expr = VariableExpr { name: name.clone() };
+
+        let interpreter = Interpreter::new();
+
+        assert!(interpreter.visit_variable_expr(&expr).is_err());
     }
 }

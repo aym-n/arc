@@ -1,7 +1,7 @@
 use crate::errors::*;
 use crate::expr::*;
-use crate::tokens::*;
 use crate::stmt::*;
+use crate::tokens::*;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -15,14 +15,28 @@ impl Parser {
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut statements: Vec<Stmt> = Vec::new();
-        while !self.is_at_end(){
-            statements.push(self.statment()?);
+        while !self.is_at_end() {
+            statements.push(self.declaration()?);
         }
         Ok(statements)
     }
 
     fn expression(&mut self) -> Result<Expr, Error> {
         self.equality()
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, Error> {
+        let result = if self.match_token(vec![TokenKind::Var]) {
+            self.var_declaration()
+        } else {
+            self.statment()
+        };
+
+        if result.is_err() {
+            self.synchronize();
+        }
+
+        result
     }
 
     fn statment(&mut self) -> Result<Stmt, Error> {
@@ -36,6 +50,23 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Print(PrintStmt { expression: value }))
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, Error> {
+        let name = self.consume(TokenKind::Identifier, "Expect variable name.")?;
+
+        let initializer = if self.match_token(vec![TokenKind::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(
+            TokenKind::Semicolon,
+            "Expect ';' after variable declaration.",
+        )?;
+
+        Ok(Stmt::Var(VarStmt { name, initializer }))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, Error> {
@@ -148,6 +179,12 @@ impl Parser {
         if self.match_token(vec![TokenKind::Number, TokenKind::String]) {
             return Ok(Expr::Literal(LiteralExpr {
                 value: self.previous().literal,
+            }));
+        }
+
+        if self.match_token(vec![TokenKind::Identifier]) {
+            return Ok(Expr::Variable(VariableExpr {
+                name: self.previous(),
             }));
         }
 
