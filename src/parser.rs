@@ -43,6 +43,12 @@ impl Parser {
         if self.match_token(vec![TokenKind::Print]) {
             return self.print_statement();
         }
+
+        if self.match_token(vec![TokenKind::LeftBrace]) {
+            return Ok(Stmt::Block(BlockStmt {
+                statements: self.block()?,
+            }));
+        }
         self.expression_statement()
     }
 
@@ -73,6 +79,18 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Expression(ExpressionStmt { expression: value }))
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, Error> {
+        let mut statements: Vec<Stmt> = Vec::new();
+
+        while !self.check(TokenKind::RightBrace) && !self.is_at_end() {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(TokenKind::RightBrace, "Expect '}' after block.")?;
+        
+        Ok(statements)
     }
 
     fn assignment(&mut self) -> Result<Expr, Error>{

@@ -31,6 +31,7 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
         output_dir,
         &"Stmt".to_string(),
         &vec![
+            "Block      : Vec<Stmt> statements".to_string(),
             "Expression : Expr expression".to_string(),
             "Print      : Expr expression".to_string(),
             "Var        : Token name, Option<Expr> initializer".to_string(),

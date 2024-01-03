@@ -4,12 +4,18 @@ use crate::expr::*;
 use crate::stmt::*;
 use crate::tokens::*;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub struct Interpreter {
-    environment: RefCell<Environment>,
+    environment: RefCell<Rc<RefCell<Environment>>>,
 }
 
 impl StmtVisitor<()> for Interpreter {
+    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), Error> {
+        let environment =
+            Environment::new_with_enclosing(Rc::clone(&self.environment.borrow().clone()));
+        self.execute_block(&stmt.statements, environment)
+    }
     fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), Error> {
         let value = self.evaluate(&stmt.expression)?;
         println!("{}", value);
@@ -29,6 +35,7 @@ impl StmtVisitor<()> for Interpreter {
         };
 
         self.environment
+            .borrow()
             .borrow_mut()
             .define(stmt.name.lexeme.clone(), value);
         Ok(())
@@ -39,6 +46,7 @@ impl ExprVisitor<Object> for Interpreter {
     fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, Error> {
         let value = self.evaluate(&expr.value)?;
         self.environment
+            .borrow()
             .borrow_mut()
             .assign(&expr.name, value.clone())?;
         Ok(value)
@@ -144,19 +152,31 @@ impl ExprVisitor<Object> for Interpreter {
     }
 
     fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, Error> {
-        self.environment.borrow().get(&expr.name)
+        self.environment.borrow().borrow().get(&expr.name)
     }
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            environment: RefCell::new(Environment::new()),
+            environment: RefCell::new(Rc::new(RefCell::new(Environment::new()))),
         }
     }
 
     fn execute(&self, stmt: &Stmt) -> Result<(), Error> {
         stmt.accept(self)
+    }
+
+    fn execute_block(&self, statements: &[Stmt], environment: Environment) -> Result<(), Error> {
+        let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
+
+        let result = statements
+            .iter()
+            .try_for_each(|statement| self.execute(statement));
+
+        self.environment.replace(previous);
+
+        result
     }
 
     pub fn interpret(&self, statements: &[Stmt]) -> bool {
