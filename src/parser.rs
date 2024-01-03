@@ -22,7 +22,7 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, Error> {
-        self.equality()
+        self.assignment()
     }
 
     fn declaration(&mut self) -> Result<Stmt, Error> {
@@ -73,6 +73,34 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Expression(ExpressionStmt { expression: value }))
+    }
+
+    fn assignment(&mut self) -> Result<Expr, Error>{
+
+        let expr = self.equality()?;
+
+        if self.match_token(vec![TokenKind::Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+
+            match expr {
+                Expr::Variable(v) => {
+                    return Ok(Expr::Assign(AssignExpr {
+                        name: v.name,
+                        value: Box::new(value),
+                    }));
+                }
+                _ => {
+                    return Err(Error::new(
+                        equals.line,
+                        "Invalid assignment target.".to_string(),
+                    ));
+                }
+            }
+        }
+
+        Ok(expr)
+
     }
 
     fn equality(&mut self) -> Result<Expr, Error> {
