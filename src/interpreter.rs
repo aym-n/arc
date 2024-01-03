@@ -182,6 +182,10 @@ impl Interpreter {
             _ => true,
         }
     }
+
+    pub fn print_env(&self) {
+        println!("{:?}", self.environment.borrow());
+    }
 }
 
 #[cfg(test)]

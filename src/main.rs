@@ -41,13 +41,32 @@ fn eval(source: &str) -> Result<(), Error> {
 }
 
 fn repl() {
+    let interpreter = Interpreter::new();
     loop {
         let mut input = String::new();
         print!(">");
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
 
-        let _ = eval(&input);
+        match input.trim() {
+            "exit" => std::process::exit(0),
+            "@" => interpreter.print_env(),
+            _ => {
+                let lexer = Lexer::new(input);
+                let mut tokens: Vec<Token> = lexer.collect();
+                tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
+
+                let mut parser = Parser::new(tokens);
+                match parser.parse() {
+                    Ok(statements) => {
+                        if !interpreter.interpret(&statements) {
+                            std::process::exit(1);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 }
 
