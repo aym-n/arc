@@ -636,7 +636,7 @@ mod tests {
         let _ = interpreter.visit_var_stmt(&stmt);
         assert!(result.is_ok());
         assert_eq!(
-            interpreter.environment.borrow().get(&stmt.name).ok(),
+            interpreter.environment.borrow().borrow().get(&stmt.name).ok(),
             Some(Object::Num(1.0))
         );
     }
@@ -655,7 +655,7 @@ mod tests {
         let _ = interpreter.visit_var_stmt(&stmt);
         assert!(result.is_ok());
         assert_eq!(
-            interpreter.environment.borrow().get(&stmt.name).ok(),
+            interpreter.environment.borrow().borrow().get(&stmt.name).ok(),
             Some(Object::Nil)
         );
     }
