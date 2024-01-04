@@ -11,6 +11,14 @@ pub struct Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
+    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), Error> {
+        if self.is_truthy(self.evaluate(&stmt.condition)?) {
+            self.execute(&stmt.then_branch)?;
+        } else if let Some(else_branch) = &stmt.else_branch {
+            self.execute(else_branch)?;
+        }
+        Ok(())
+    }
     fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), Error> {
         let environment =
             Environment::new_with_enclosing(Rc::clone(&self.environment.borrow().clone()));
@@ -43,6 +51,21 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, Error>{
+        let left = self.evaluate(&expr.left)?;
+
+        if expr.operator.kind == TokenKind::Or {
+            if self.is_truthy(left.clone()) {
+                return Ok(left);
+            }
+        } else {
+            if !self.is_truthy(left.clone()) {
+                return Ok(left);
+            }
+        }
+
+        self.evaluate(&expr.right)
+    }
     fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, Error> {
         let value = self.evaluate(&expr.value)?;
         self.environment
