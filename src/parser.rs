@@ -29,7 +29,7 @@ impl Parser {
         let result = if self.match_token(vec![TokenKind::Var]) {
             self.var_declaration()
         } else {
-            self.statment()
+            self.statement()
         };
 
         if result.is_err() {
@@ -39,13 +39,20 @@ impl Parser {
         result
     }
 
-    fn statment(&mut self) -> Result<Stmt, Error> {
+    fn statement(&mut self) -> Result<Stmt, Error> {
+        if self.match_token(vec![TokenKind::For]) {
+            return self.for_statement();
+        }
         if self.match_token(vec![TokenKind::If]) {
             return self.if_statement();
         }
 
         if self.match_token(vec![TokenKind::Print]) {
             return self.print_statement();
+        }
+
+        if self.match_token(vec![TokenKind::While]) {
+            return self.while_statement();
         }
 
         if self.match_token(vec![TokenKind::LeftBrace]) {
@@ -56,14 +63,69 @@ impl Parser {
         self.expression_statement()
     }
 
+    fn for_statement(&mut self) -> Result<Stmt, Error> {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'for'.")?;
+
+        let initializer = if self.match_token(vec![TokenKind::Semicolon]) {
+            None
+        } else if self.match_token(vec![TokenKind::Var]) {
+            Some(self.var_declaration()?)
+        } else {
+            Some(self.expression_statement()?)
+        };
+
+        let condition = if self.check(TokenKind::Semicolon) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+
+        self.consume(TokenKind::Semicolon, "Expect ';' after loop condition.")?;
+
+        let increment = if self.check(TokenKind::RightParen) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+
+        self.consume(TokenKind::RightParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+
+        if let Some(incr) = increment {
+            body = Stmt::Block(BlockStmt {
+                statements: vec![body, Stmt::Expression(ExpressionStmt { expression: incr })],
+            });
+        }
+
+        body = Stmt::While(WhileStmt {
+            condition: if let Some(cond) = condition {
+                cond
+            } else {
+                Expr::Literal(LiteralExpr {
+                    value: Some(Object::Bool(true)),
+                })
+            },
+            body: Box::new(body),
+        });
+
+        if let Some(init) = initializer {
+            body = Stmt::Block(BlockStmt {
+                statements: vec![init, body],
+            });
+        }
+
+        Ok(body)
+    }
+
     fn if_statement(&mut self) -> Result<Stmt, Error> {
         self.consume(TokenKind::LeftParen, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
         self.consume(TokenKind::RightParen, "Expect ')' after if condition.")?;
 
-        let then_branch = Box::new(self.statment()?);
+        let then_branch = Box::new(self.statement()?);
         let else_branch = if self.match_token(vec![TokenKind::Else]) {
-            Some(Box::new(self.statment()?))
+            Some(Box::new(self.statement()?))
         } else {
             None
         };
@@ -98,6 +160,15 @@ impl Parser {
         Ok(Stmt::Var(VarStmt { name, initializer }))
     }
 
+    fn while_statement(&mut self) -> Result<Stmt, Error> {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.")?;
+        let condition = self.expression()?;
+        self.consume(TokenKind::RightParen, "Expect ')' after condition.")?;
+        let body = Box::new(self.statement()?);
+
+        Ok(Stmt::While(WhileStmt { condition, body }))
+    }
+
     fn expression_statement(&mut self) -> Result<Stmt, Error> {
         let value = self.expression()?;
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
@@ -112,12 +183,11 @@ impl Parser {
         }
 
         self.consume(TokenKind::RightBrace, "Expect '}' after block.")?;
-        
+
         Ok(statements)
     }
 
-    fn assignment(&mut self) -> Result<Expr, Error>{
-
+    fn assignment(&mut self) -> Result<Expr, Error> {
         let expr = self.or()?;
 
         if self.match_token(vec![TokenKind::Equal]) {
@@ -141,7 +211,6 @@ impl Parser {
         }
 
         Ok(expr)
-
     }
 
     fn or(&mut self) -> Result<Expr, Error> {

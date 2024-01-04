@@ -37,6 +37,7 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
             "If         : Expr condition, Box<Stmt> then_branch, Option<Box<Stmt>> else_branch".to_string(),
             "Print      : Expr expression".to_string(),
             "Var        : Token name, Option<Expr> initializer".to_string(),
+            "While      : Expr condition, Box<Stmt> body".to_string(),
         ],
         &vec![
             "crate::expr::Expr".to_string(),
