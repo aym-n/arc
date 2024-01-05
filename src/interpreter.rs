@@ -181,6 +181,31 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
+    fn visit_call_expr(&self, expr: &CallExpr) -> Result<Object, Error> {
+
+        let callee = self.evaluate(&expr.callee)?;
+
+        let mut arguments = Vec::new();
+
+        for argument in &expr.arguments {
+            arguments.push(self.evaluate(argument)?);
+        }
+        
+
+        if let Object::Function(function) = callee {
+
+            let _ = function.func.call(self, &arguments);
+
+        } else {
+            return Err(Error::new(
+                expr.paren.line,
+                format!("Can only call functions and classes"),
+            ));
+        }
+
+        Ok(Object::Nil)
+    }
+
     fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, Error> {
         self.environment.borrow().borrow().get(&expr.name)
     }

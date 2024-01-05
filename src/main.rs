@@ -24,6 +24,8 @@ mod stmt;
 
 mod enviroment;
 
+mod callable;
+
 fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
     let mut tokens: Vec<Token> = lexer.collect();

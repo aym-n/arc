@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::callable::Callable;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum TokenKind {
@@ -62,6 +63,7 @@ pub enum Object {
     Num(f64),
     Str(String),
     Bool(bool),
+    Function(Callable),
     Nil,
     ArithmeticError,
 }
@@ -74,6 +76,7 @@ impl fmt::Display for Object {
             Object::Nil => write!(f, "nil"),
             Object::Bool(x) => write!(f, "{x}"),
             Object::ArithmeticError => write!(f, "Arithmetic Error"),
+            Object::Function(_) => write!(f, "<func>"),
         }
     }
 }

@@ -324,7 +324,47 @@ impl Parser {
             }));
         }
 
-        Ok(self.primary()?)
+        Ok(self.call()?)
+    }
+
+    fn finish_call(&mut self, callee : Expr) -> Result<Expr, Error> {
+        let mut arguments: Vec<Expr> = Vec::new();
+
+        if !self.check(TokenKind::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    return Err(Error::new(
+                        self.peek().line,
+                        "Can't have more than 255 arguments.".to_string(),
+                    ));
+                }
+                arguments.push(self.expression()?);
+                if !self.match_token(vec![TokenKind::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume(TokenKind::RightParen, "Expect ')' after arguments.")?;
+
+        Ok(Expr::Call(CallExpr {
+            callee: Box::new(callee),
+            paren,
+            arguments,
+        }))
+    }
+
+    fn call(&mut self) -> Result<Expr, Error> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.match_token(vec![TokenKind::LeftParen]) {
+                expr = self.finish_call(expr)?;
+            } else {
+                break;
+            }
+        }
+        Ok(expr)
     }
 
     fn primary(&mut self) -> Result<Expr, Error> {

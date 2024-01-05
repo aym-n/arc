@@ -17,22 +17,6 @@ impl Lexer {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
-        let mut tokens: Vec<Token> = Vec::new();
-
-        while !self.is_at_end() {
-            self.start = self.current;
-            let token = self.next();
-            if let Some(token) = token {
-                tokens.push(token);
-            }
-        }
-
-        tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, self.line));
-
-        tokens
-    }
-
     pub fn current_char(&self) -> char {
         self.input.chars().nth(self.current).unwrap_or('\0')
     }
@@ -120,19 +104,6 @@ impl Lexer {
 
     fn is_at_end(&self) -> bool {
         self.current >= self.input.len()
-    }
-
-    fn match_char(&mut self, expected: char) -> bool {
-        if self.is_at_end() {
-            self.current += 1;
-            return false;
-        }
-
-        if self.current_char() != expected {
-            return false;
-        }
-
-        true
     }
 }
 
