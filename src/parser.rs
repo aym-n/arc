@@ -26,7 +26,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, Error> {
-        let result = if self.match_token(vec![TokenKind::Var]) {
+        let result = if self.match_token(vec![TokenKind::Fn]) {
+            self.function("function")
+        } else if self.match_token(vec![TokenKind::Var]) {
             self.var_declaration()
         } else {
             self.statement()
@@ -173,6 +175,32 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Expression(ExpressionStmt { expression: value }))
+    }
+
+    fn function(&mut self, kind: &str) -> Result<Stmt, Error> {
+        let name = self.consume(TokenKind::Identifier, &format!("Expect {kind} name"))?;
+
+        self.consume(TokenKind::LeftParen, &format!("Expect '(' after {kind} name"))?;
+
+        let mut params = Vec::new();
+        if !self.check(TokenKind::RightParen) {
+            params.push(self.consume(TokenKind::Identifier, "Expect Parameter Name")?);
+            while self.match_token(vec![TokenKind::Comma]) {
+                if params.len() >= 255 {
+                    return Err(Error::new(
+                        self.peek().line,
+                        format!("can't have more than 255 parameters"),
+                    ));
+                }
+                params.push(self.consume(TokenKind::Identifier, "Expect Parameter Name")?);
+            }
+        }
+
+        self.consume(TokenKind::RightParen, "Expect ')' after parameter")?;
+        self.consume(TokenKind::LeftBrace, &format!("Expect '{{' after {kind} body"))?;
+
+        let body = self.block()?;
+        Ok(Stmt::Function(FunctionStmt { name, params, body }))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, Error> {
@@ -327,7 +355,7 @@ impl Parser {
         Ok(self.call()?)
     }
 
-    fn finish_call(&mut self, callee : Expr) -> Result<Expr, Error> {
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, Error> {
         let mut arguments: Vec<Expr> = Vec::new();
 
         if !self.check(TokenKind::RightParen) {

@@ -5,12 +5,28 @@ use crate::stmt::*;
 use crate::tokens::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-
+use crate::native_functions::*;
+use crate::callable::*;
+use crate::functions::*;
 pub struct Interpreter {
+    pub globals: Rc<RefCell<Environment>>,
     environment: RefCell<Rc<RefCell<Environment>>>,
 }
 
 impl StmtVisitor<()> for Interpreter {
+
+    fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error>{
+        let function = Function::new(&Rc::new(stmt));
+            self.environment
+                .borrow()
+                .borrow_mut()
+                .define(stmt.name.lexeme.clone(), Object::Function(Callable {
+                    func: Rc::new(function),
+                }));
+        Ok(())
+    }
+
+
     fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), Error> {
         if self.is_truthy(self.evaluate(&stmt.condition)?) {
             self.execute(&stmt.then_branch)?;
@@ -58,7 +74,7 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, Error>{
+    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, Error> {
         let left = self.evaluate(&expr.left)?;
 
         if expr.operator.kind == TokenKind::Or {
@@ -182,7 +198,6 @@ impl ExprVisitor<Object> for Interpreter {
     }
 
     fn visit_call_expr(&self, expr: &CallExpr) -> Result<Object, Error> {
-
         let callee = self.evaluate(&expr.callee)?;
 
         let mut arguments = Vec::new();
@@ -190,12 +205,19 @@ impl ExprVisitor<Object> for Interpreter {
         for argument in &expr.arguments {
             arguments.push(self.evaluate(argument)?);
         }
-        
 
         if let Object::Function(function) = callee {
-
-            let _ = function.func.call(self, &arguments);
-
+            if arguments.len() != function.arity() {
+                return Err(Error::new(
+                    expr.paren.line,
+                    format!(
+                        "Expected {} arguments but got {}",
+                        function.arity(),
+                        arguments.len()
+                    ),
+                ));
+            }
+            function.func.call(self, &arguments)
         } else {
             return Err(Error::new(
                 expr.paren.line,
@@ -203,7 +225,6 @@ impl ExprVisitor<Object> for Interpreter {
             ));
         }
 
-        Ok(Object::Nil)
     }
 
     fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, Error> {
@@ -213,8 +234,18 @@ impl ExprVisitor<Object> for Interpreter {
 
 impl Interpreter {
     pub fn new() -> Interpreter {
+        let global = Rc::new(RefCell::new(Environment::new()));
+
+        global.borrow_mut().define(
+            "clock".to_string(),
+            Object::Function(Callable {
+                func: Rc::new(NativeClock {}),
+            }),
+        );
+
         Interpreter {
-            environment: RefCell::new(Rc::new(RefCell::new(Environment::new()))),
+            globals: Rc::clone(&global),
+            environment: RefCell::new(Rc::clone(&global)),
         }
     }
 
@@ -222,7 +253,7 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(&self, statements: &[Stmt], environment: Environment) -> Result<(), Error> {
+    pub fn execute_block(&self, statements: &[Stmt], environment: Environment) -> Result<(), Error> {
         let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
 
         let result = statements
@@ -668,7 +699,12 @@ mod tests {
         let _ = interpreter.visit_var_stmt(&stmt);
         assert!(result.is_ok());
         assert_eq!(
-            interpreter.environment.borrow().borrow().get(&stmt.name).ok(),
+            interpreter
+                .environment
+                .borrow()
+                .borrow()
+                .get(&stmt.name)
+                .ok(),
             Some(Object::Num(1.0))
         );
     }
@@ -687,7 +723,12 @@ mod tests {
         let _ = interpreter.visit_var_stmt(&stmt);
         assert!(result.is_ok());
         assert_eq!(
-            interpreter.environment.borrow().borrow().get(&stmt.name).ok(),
+            interpreter
+                .environment
+                .borrow()
+                .borrow()
+                .get(&stmt.name)
+                .ok(),
             Some(Object::Nil)
         );
     }
