@@ -1,13 +1,15 @@
+use crate::callable::*;
 use crate::enviroment::Environment;
 use crate::errors::*;
 use crate::expr::*;
+use crate::functions::*;
+use crate::native_functions::*;
 use crate::stmt::*;
 use crate::tokens::*;
+
+use std::ops::Deref;
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::native_functions::*;
-use crate::callable::*;
-use crate::functions::*;
 pub struct Interpreter {
     pub globals: Rc<RefCell<Environment>>,
     environment: RefCell<Rc<RefCell<Environment>>>,
@@ -22,17 +24,16 @@ impl StmtVisitor<()> for Interpreter {
             Err(Error::return_value(Object::Nil))
         }
     }
-    fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error>{
-        let function = Function::new(&stmt);
-            self.environment
-                .borrow()
-                .borrow_mut()
-                .define(stmt.name.lexeme.clone(), Object::Function(Callable {
-                    func: Rc::new(function),
-                }));
+    fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error> {
+        let function = Function::new(&stmt, self.environment.borrow().deref());
+        self.environment.borrow().borrow_mut().define(
+            stmt.name.lexeme.clone(),
+            Object::Function(Callable {
+                func: Rc::new(function),
+            }),
+        );
         Ok(())
     }
-
 
     fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), Error> {
         if self.is_truthy(self.evaluate(&stmt.condition)?) {
@@ -234,7 +235,6 @@ impl ExprVisitor<Object> for Interpreter {
                 "Can only call functions and classes",
             ));
         }
-
     }
 
     fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, Error> {
@@ -263,7 +263,11 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn execute_block(&self, statements: &[Stmt], environment: Environment) -> Result<(), Error> {
+    pub fn execute_block(
+        &self,
+        statements: &[Stmt],
+        environment: Environment,
+    ) -> Result<(), Error> {
         let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
 
         let result = statements
