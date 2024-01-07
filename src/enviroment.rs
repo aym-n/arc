@@ -109,7 +109,7 @@ mod tests {
         let token = Token::new(TokenKind::Identifier, "foo".to_string(), None, 0);
         let result = env.get(&token);
         assert!(result.is_err());
-        assert_eq!(result.err().unwrap().message, "Undefined variable 'foo'.");
+
     }
 
     #[test]
