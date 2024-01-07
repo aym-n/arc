@@ -1,21 +1,57 @@
-use std::process::exit;
+use crate::tokens::*;
 
-// TODO: implement error handling with Result<T, E>
-pub struct Error {
-    pub line: usize,
-    pub message: String,
+pub enum Error {
+    ParseError { token: Token, message: String },
+    RuntimeError { token: Token, message: String },
+    SystemError { message: String },
+    ReturnValue { value: Object },
 }
 
 impl Error {
-    pub fn new(line: usize, message: String) -> Self {
-        Error {
-            line,
-            message,
-        }
+    pub fn return_value(value: Object) -> Error {
+        Error::ReturnValue { value }
     }
 
-    pub fn report(&self) {
-        eprintln!("[line {}] Error: {}", self.line, self.message);
-        exit(65);
+    pub fn parse_error(token: &Token, message: &str) -> Error {
+        let err = Error::ParseError {
+            token: token.clone(),
+            message: message.to_string(),
+        };
+        err.report("");
+        err
+    }
+
+    pub fn runtime_error(token: &Token, message: &str) -> Error {
+        let err = Error::RuntimeError {
+            token: token.clone(),
+            message: message.to_string(),
+        };
+        err.report("");
+        err
+    }
+
+    pub fn system_error(message: &str) -> Error {
+        let err = Error::SystemError {
+            message: message.to_string(),
+        };
+        err.report("");
+        err
+    }
+
+    fn report(&self, loc: &str) {
+        match self {
+            Error::ParseError { token, message }
+            | Error::RuntimeError { token, message } => {
+                if token.kind == TokenKind::EOF {
+                    eprintln!("{} at end {}", token.line, message);
+                } else {
+                    eprintln!("line {} at '{}' {}", token.line, token.lexeme, message);
+                }
+            }
+            Error::SystemError { message } => {
+                eprintln!("System Error: {message}");
+            }
+            Error::ReturnValue { .. } => {}
+        };
     }
 }

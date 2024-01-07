@@ -40,6 +40,7 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
             "Print      : Expr expression".to_string(),
             "Var        : Token name, Option<Expr> initializer".to_string(),
             "While      : Expr condition, Box<Stmt> body".to_string(),
+            "Return     : Token keyword, Option<Expr> value".to_string(),
         ],
         &vec![
             "crate::expr::Expr".to_string(),

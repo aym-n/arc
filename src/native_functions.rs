@@ -11,7 +11,7 @@ impl CallableTrait for NativeClock {
     fn call(&self, _terp: &Interpreter, _args: &Vec<Object>) -> Result<Object, Error> {
         match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
             Ok(n) => Ok(Object::Num(n.as_millis() as f64)),
-            Err(_) => Err(Error::new(0, "Could not get time".to_string())),
+            Err(_) => Err(Error::system_error("Failed to get time.")),
         }
     }
 

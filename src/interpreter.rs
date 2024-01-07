@@ -14,7 +14,9 @@ pub struct Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
-
+    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result<(), Error> {
+        Ok(())
+    }
     fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error>{
         let function = Function::new(&stmt);
             self.environment
@@ -119,9 +121,9 @@ impl ExprVisitor<Object> for Interpreter {
             TokenKind::Bang => {
                 return Ok(Object::Bool(!self.is_truthy(right)));
             }
-            _ => Err(Error::new(
-                expr.operator.line,
-                format!("Expect unary operator. Got {}", expr.operator.lexeme),
+            _ => Err(Error::runtime_error(
+                &expr.operator,
+                "Invalid unary operator",
             )),
         }
     }
@@ -191,7 +193,10 @@ impl ExprVisitor<Object> for Interpreter {
         };
 
         if result == Object::ArithmeticError {
-            Err(Error::new(expr.operator.line, format!("Arithmetic error")))
+            Err(Error::runtime_error(
+                &expr.operator,
+                "Invalid binary operator",
+            ))
         } else {
             Ok(result)
         }
@@ -208,9 +213,9 @@ impl ExprVisitor<Object> for Interpreter {
 
         if let Object::Function(function) = callee {
             if arguments.len() != function.arity() {
-                return Err(Error::new(
-                    expr.paren.line,
-                    format!(
+                return Err(Error::runtime_error(
+                    &expr.paren,
+                    &format!(
                         "Expected {} arguments but got {}",
                         function.arity(),
                         arguments.len()
@@ -219,9 +224,9 @@ impl ExprVisitor<Object> for Interpreter {
             }
             function.func.call(self, &arguments)
         } else {
-            return Err(Error::new(
-                expr.paren.line,
-                format!("Can only call functions and classes"),
+            return Err(Error::runtime_error(
+                &expr.paren,
+                "Can only call functions and classes",
             ));
         }
 
@@ -269,7 +274,6 @@ impl Interpreter {
         let mut success = true;
         for statment in statements {
             if let Err(e) = self.execute(statment) {
-                e.report();
                 success = false;
                 break;
             }

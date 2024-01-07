@@ -54,6 +54,10 @@ impl Parser {
             return self.print_statement();
         }
 
+        if self.match_token(vec![TokenKind::Return]) {
+            return self.return_statement();
+        }
+
         if self.match_token(vec![TokenKind::While]) {
             return self.while_statement();
         }
@@ -64,6 +68,18 @@ impl Parser {
             }));
         }
         self.expression_statement()
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, Error> {
+        let keyword = self.previous();
+        let value = if self.check(TokenKind::Semicolon) {
+            None
+        } else {
+            Some(self.expression()?)
+        };
+
+        self.consume(TokenKind::Semicolon, "Expect ';' after return value.")?;
+        Ok(Stmt::Return(ReturnStmt { keyword, value }))
     }
 
     fn for_statement(&mut self) -> Result<Stmt, Error> {
@@ -188,10 +204,10 @@ impl Parser {
             params.push(self.consume(TokenKind::Identifier, "Expect Parameter Name")?);
             while self.match_token(vec![TokenKind::Comma]) {
                 if params.len() >= 255 {
-                    return Err(Error::new(
-                        self.peek().line,
-                        format!("can't have more than 255 parameters"),
-                    ));
+                    return Err(Error::parse_error(
+                        &self.peek(),
+                        "Can't have more than 255 parameters.",
+                    ))
                 }
                 params.push(self.consume(TokenKind::Identifier, "Expect Parameter Name")?);
             }
@@ -231,9 +247,9 @@ impl Parser {
                     }));
                 }
                 _ => {
-                    return Err(Error::new(
-                        equals.line,
-                        "Invalid assignment target.".to_string(),
+                    return Err(Error::parse_error(
+                        &equals,
+                        "Invalid assignment target.",
                     ));
                 }
             }
@@ -362,9 +378,9 @@ impl Parser {
         if !self.check(TokenKind::RightParen) {
             loop {
                 if arguments.len() >= 255 {
-                    return Err(Error::new(
-                        self.peek().line,
-                        "Can't have more than 255 arguments.".to_string(),
+                    return Err(Error::parse_error(
+                        &self.peek(),
+                        "Can't have more than 255 arguments.",
                     ));
                 }
                 arguments.push(self.expression()?);
@@ -435,10 +451,7 @@ impl Parser {
             }));
         }
 
-        Err(Error::new(
-            self.peek().line,
-            format!("Expect expression. Got {}", self.peek().lexeme),
-        ))
+        Err(Error::parse_error(&self.peek(), "Expect expression."))
     }
 
     fn match_token(&mut self, kinds: Vec<TokenKind>) -> bool {
@@ -482,7 +495,7 @@ impl Parser {
             return Ok(self.advance());
         }
 
-        Err(Error::new(self.peek().line, message.to_string()))
+        Err(Error::parse_error(&self.peek(), message))
     }
 
     fn synchronize(&mut self) {

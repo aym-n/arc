@@ -36,9 +36,9 @@ impl Environment {
             None => {
                 match &self.enclosing {
                     Some(env) => env.borrow().get(token),
-                    None => Err(Error::new(
-                        token.line,
-                        format!("Undefined variable '{}'.", token.lexeme),
+                    None => Err(Error::parse_error(
+                        token,
+                        &format!("Undefined variable '{}'.", token.lexeme),
                     )),
                 }
             }
@@ -54,9 +54,9 @@ impl Environment {
             None => {
                 match &self.enclosing {
                     Some(env) => env.borrow_mut().assign(name, value),
-                    None => Err(Error::new(
-                        name.line,
-                        format!("Undefined variable '{}'.", name.lexeme),
+                    None => Err(Error::parse_error(
+                        name,
+                        &format!("Undefined variable '{}'.", name.lexeme),
                     )),
                 }
             }
