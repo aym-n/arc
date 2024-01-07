@@ -16,7 +16,7 @@ pub struct Interpreter {
 impl StmtVisitor<()> for Interpreter {
 
     fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error>{
-        let function = Function::new(&Rc::new(stmt));
+        let function = Function::new(&stmt);
             self.environment
                 .borrow()
                 .borrow_mut()

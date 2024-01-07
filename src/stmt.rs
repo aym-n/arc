@@ -1,6 +1,7 @@
 use crate::expr::Expr;
 use crate::errors::*;
 use crate::tokens::*;
+use std::rc::Rc;
 
 pub enum Stmt {
     Block(BlockStmt),
@@ -36,8 +37,8 @@ pub struct ExpressionStmt {
 
 pub struct FunctionStmt {
     pub name: Token,
-    pub params: Vec<Token>,
-    pub body: Vec<Stmt>,
+    pub params: Rc<Vec<Token>>,
+    pub body: Rc<Vec<Stmt>>,
 }
 
 pub struct IfStmt {

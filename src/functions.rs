@@ -7,46 +7,39 @@ use std::rc::Rc;
 
 use crate::interpreter::Interpreter;
 pub struct Function {
-    declaration: Rc<Stmt>,
+    name : Token,
+    params : Rc<Vec<Token>>,
+    body : Rc<Vec<Stmt>>,
 }
 
 impl Function {
-    pub fn new(declaration: &Rc<Stmt>) -> Self {
+    pub fn new(declaration: &FunctionStmt) -> Self {
         Self {
-            declaration: Rc::clone(declaration),
+            name: declaration.name.clone(),
+            params: Rc::clone(&declaration.params),
+            body: Rc::clone(&declaration.body),
         }
     }
 }
 
 impl CallableTrait for Function {
-    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error> {
-        if let Stmt::Function(FunctionStmt { name, params, body }) = &*self.declaration {
-            let mut e = Environment::new_with_enclosing(Rc::clone(&interpreter.globals));
-            for (param, arg) in params.iter().zip(arguments.iter()) {
-                e.define(param.lexeme.clone(), arg.clone());
-            }
 
-            interpreter.execute_block(body, e)?;
-            Ok(Object::Nil)
-        }else{
-            Err(Error::new(0, "Function declaration is not a function".to_string()))
+    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error> {
+        let mut e = Environment::new_with_enclosing(Rc::clone(&interpreter.globals));
+
+        for (param , arg) in self.params.iter().zip(arguments.iter()) {
+            e.define(param.lexeme.clone(), arg.clone());
         }
 
+        interpreter.execute_block(&self.body, e)?;
+        Ok(Object::Nil)   
     }
 
     fn arity(&self) -> usize {
-        if let Stmt::Function(FunctionStmt { name, params, body }) = &*self.declaration {
-            params.len()
-        }else{
-            panic!("Function declaration is not a function")
-        }
+        self.params.len()
     }
 
     fn stringify(&self) -> String {
-        if let Stmt::Function(FunctionStmt { name, params, body }) = &*self.declaration {
-            format!("<fn {}>", name.lexeme)
-        }else{
-            panic!("Function declaration is not a function")
-        }
+        self.name.lexeme.clone()
     }
 }

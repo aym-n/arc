@@ -2,6 +2,7 @@ use crate::errors::*;
 use crate::expr::*;
 use crate::stmt::*;
 use crate::tokens::*;
+use std::rc::Rc;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -200,7 +201,7 @@ impl Parser {
         self.consume(TokenKind::LeftBrace, &format!("Expect '{{' after {kind} body"))?;
 
         let body = self.block()?;
-        Ok(Stmt::Function(FunctionStmt { name, params, body }))
+        Ok(Stmt::Function(FunctionStmt { name, params: Rc::new(params), body: Rc::new(body) }))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, Error> {

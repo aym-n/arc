@@ -35,7 +35,7 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
         &vec![
             "Block      : Vec<Stmt> statements".to_string(),
             "Expression : Expr expression".to_string(),
-            "Function   : Token name, Vec<Token> params, Vec<Stmt> body".to_string(),
+            "Function   : Token name, Rc<Vec<Token>> params, Rc<Vec<Stmt>> body".to_string(),
             "If         : Expr condition, Box<Stmt> then_branch, Option<Box<Stmt>> else_branch".to_string(),
             "Print      : Expr expression".to_string(),
             "Var        : Token name, Option<Expr> initializer".to_string(),
@@ -45,6 +45,7 @@ pub fn generate_ast(output_dir: &String) -> io::Result<()> {
             "crate::expr::Expr".to_string(),
             "crate::errors::*".to_string(),
             "crate::tokens::*".to_string(),
+            "std::rc::Rc".to_string(),
         ],
     )?;
     Ok(())
