@@ -4,12 +4,12 @@ pub enum Error {
     ParseError { token: Token, message: String },
     RuntimeError { token: Token, message: String },
     SystemError { message: String },
-    ReturnValue { value: Object },
+    Return { value: Object },
 }
 
 impl Error {
     pub fn return_value(value: Object) -> Error {
-        Error::ReturnValue { value }
+        Error::Return { value }
     }
 
     pub fn parse_error(token: &Token, message: &str) -> Error {
@@ -51,7 +51,7 @@ impl Error {
             Error::SystemError { message } => {
                 eprintln!("System Error: {message}");
             }
-            Error::ReturnValue { .. } => {}
+            Error::Return { .. } => {}
         };
     }
 }

@@ -31,8 +31,15 @@ impl CallableTrait for Function {
             e.define(param.lexeme.clone(), arg.clone());
         }
 
-        interpreter.execute_block(&self.body, e)?;
-        Ok(Object::Nil)   
+        match interpreter.execute_block(&self.body, e) {
+            Ok(_) => Ok(Object::Nil),
+            Err(e) => {
+                match e {
+                    Error::Return { value } => Ok(value),
+                    _ => Err(e),
+                }
+            }
+        }
     }
 
     fn arity(&self) -> usize {

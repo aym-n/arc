@@ -15,7 +15,12 @@ pub struct Interpreter {
 
 impl StmtVisitor<()> for Interpreter {
     fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result<(), Error> {
-        Ok(())
+        if let Some(value) = &stmt.value {
+            let value = self.evaluate(value)?;
+            Err(Error::return_value(value))
+        } else {
+            Err(Error::return_value(Object::Nil))
+        }
     }
     fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error>{
         let function = Function::new(&stmt);
