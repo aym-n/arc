@@ -14,8 +14,8 @@ impl Parser {
         Parser { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
-        let mut statements: Vec<Stmt> = Vec::new();
+    pub fn parse(&mut self) -> Result<Vec<Rc<Stmt>>, Error> {
+        let mut statements: Vec<Rc<Stmt>> = Vec::new();
         while !self.is_at_end() {
             statements.push(self.declaration()?);
         }
@@ -26,7 +26,7 @@ impl Parser {
         self.assignment()
     }
 
-    fn declaration(&mut self) -> Result<Stmt, Error> {
+    fn declaration(&mut self) -> Result<Rc<Stmt>, Error> {
         let result = if self.match_token(vec![TokenKind::Fn]) {
             self.function("function")
         } else if self.match_token(vec![TokenKind::Var]) {
@@ -42,47 +42,48 @@ impl Parser {
         result
     }
 
-    fn statement(&mut self) -> Result<Stmt, Error> {
+    fn statement(&mut self) -> Result<Rc<Stmt>, Error> {
         if self.match_token(vec![TokenKind::For]) {
             return self.for_statement();
         }
         if self.match_token(vec![TokenKind::If]) {
-            return self.if_statement();
+            return Ok(Rc::new(self.if_statement()?));
         }
 
         if self.match_token(vec![TokenKind::Print]) {
-            return self.print_statement();
+            return Ok(Rc::new(self.print_statement()?));
         }
 
         if self.match_token(vec![TokenKind::Return]) {
-            return self.return_statement();
+            return Ok(self.return_statement()?);
         }
 
         if self.match_token(vec![TokenKind::While]) {
-            return self.while_statement();
+            return Ok(Rc::new(self.while_statement()?));
         }
 
         if self.match_token(vec![TokenKind::LeftBrace]) {
-            return Ok(Stmt::Block(BlockStmt {
-                statements: self.block()?,
-            }));
+            return Ok(Rc::new(Stmt::Block(Rc::new(BlockStmt {
+                statements: Rc::new(self.block()?),
+            }))));
         }
-        self.expression_statement()
+        
+        Ok(self.expression_statement()?)
     }
 
-    fn return_statement(&mut self) -> Result<Stmt, Error> {
+    fn return_statement(&mut self) -> Result<Rc<Stmt>, Error> {
         let keyword = self.previous();
         let value = if self.check(TokenKind::Semicolon) {
             None
         } else {
-            Some(self.expression()?)
+            Some(Rc::new(self.expression()?))
         };
 
         self.consume(TokenKind::Semicolon, "Expect ';' after return value.")?;
-        Ok(Stmt::Return(ReturnStmt { keyword, value }))
+        Ok(Rc::new(Stmt::Return(Rc::new(ReturnStmt { keyword, value }))))
     }
 
-    fn for_statement(&mut self) -> Result<Stmt, Error> {
+    fn for_statement(&mut self) -> Result<Rc<Stmt>, Error> {
         self.consume(TokenKind::LeftParen, "Expect '(' after 'for'.")?;
 
         let initializer = if self.match_token(vec![TokenKind::Semicolon]) {
@@ -112,26 +113,28 @@ impl Parser {
         let mut body = self.statement()?;
 
         if let Some(incr) = increment {
-            body = Stmt::Block(BlockStmt {
-                statements: vec![body, Stmt::Expression(ExpressionStmt { expression: incr })],
-            });
+            body = Rc::new(Stmt::Block(Rc::new(BlockStmt {
+                statements: Rc::new(vec![body, Rc::new(Stmt::Expression(Rc::new(ExpressionStmt {
+                    expression: Rc::new(incr),
+                })))]),
+            })));
         }
 
-        body = Stmt::While(WhileStmt {
+        body = Rc::new(Stmt::While(Rc::new(WhileStmt {
             condition: if let Some(cond) = condition {
-                cond
+                Rc::new(cond)
             } else {
-                Expr::Literal(LiteralExpr {
+                Rc::new(Expr::Literal(Rc::new(LiteralExpr {
                     value: Some(Object::Bool(true)),
-                })
+                })))
             },
-            body: Box::new(body),
-        });
+            body,
+        })));
 
         if let Some(init) = initializer {
-            body = Stmt::Block(BlockStmt {
-                statements: vec![init, body],
-            });
+            body = Rc::new(Stmt::Block(Rc::new(BlockStmt {
+                statements: Rc::new(vec![init, body]),
+            })));
         }
 
         Ok(body)
@@ -139,34 +142,34 @@ impl Parser {
 
     fn if_statement(&mut self) -> Result<Stmt, Error> {
         self.consume(TokenKind::LeftParen, "Expect '(' after 'if'.")?;
-        let condition = self.expression()?;
+        let condition = Rc::new(self.expression()?);
         self.consume(TokenKind::RightParen, "Expect ')' after if condition.")?;
 
-        let then_branch = Box::new(self.statement()?);
+        let then_branch = self.statement()?;
         let else_branch = if self.match_token(vec![TokenKind::Else]) {
-            Some(Box::new(self.statement()?))
+            Some(self.statement()?)
         } else {
             None
         };
 
-        Ok(Stmt::If(IfStmt {
+        Ok(Stmt::If(Rc::new(IfStmt {
             condition,
             then_branch,
             else_branch,
-        }))
+        })))
     }
 
     fn print_statement(&mut self) -> Result<Stmt, Error> {
-        let value = self.expression()?;
+        let value = Rc::new(self.expression()?);
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Print(PrintStmt { expression: value }))
+        Ok(Stmt::Print(Rc::new(PrintStmt { expression: value })))
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt, Error> {
+    fn var_declaration(&mut self) -> Result<Rc<Stmt>, Error> {
         let name = self.consume(TokenKind::Identifier, "Expect variable name.")?;
 
         let initializer = if self.match_token(vec![TokenKind::Equal]) {
-            Some(self.expression()?)
+            Some(Rc::new(self.expression()?))
         } else {
             None
         };
@@ -176,25 +179,25 @@ impl Parser {
             "Expect ';' after variable declaration.",
         )?;
 
-        Ok(Stmt::Var(VarStmt { name, initializer }))
+        Ok(Rc::new(Stmt::Var(Rc::new(VarStmt { name, initializer }))))
     }
 
     fn while_statement(&mut self) -> Result<Stmt, Error> {
         self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.")?;
-        let condition = self.expression()?;
+        let condition = Rc::new(self.expression()?);
         self.consume(TokenKind::RightParen, "Expect ')' after condition.")?;
-        let body = Box::new(self.statement()?);
+        let body = self.statement()?;
 
-        Ok(Stmt::While(WhileStmt { condition, body }))
+        Ok(Stmt::While(Rc::new(WhileStmt { condition, body })))
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, Error> {
-        let value = self.expression()?;
+    fn expression_statement(&mut self) -> Result<Rc<Stmt>, Error> {
+        let value = Rc::new(self.expression()?);
         self.consume(TokenKind::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::Expression(ExpressionStmt { expression: value }))
+        Ok(Rc::new(Stmt::Expression(Rc::new(ExpressionStmt { expression: value }))))
     }
 
-    fn function(&mut self, kind: &str) -> Result<Stmt, Error> {
+    fn function(&mut self, kind: &str) -> Result<Rc<Stmt>, Error> {
         let name = self.consume(TokenKind::Identifier, &format!("Expect {kind} name"))?;
 
         self.consume(TokenKind::LeftParen, &format!("Expect '(' after {kind} name"))?;
@@ -216,12 +219,16 @@ impl Parser {
         self.consume(TokenKind::RightParen, "Expect ')' after parameter")?;
         self.consume(TokenKind::LeftBrace, &format!("Expect '{{' after {kind} body"))?;
 
-        let body = self.block()?;
-        Ok(Stmt::Function(FunctionStmt { name, params: Rc::new(params), body: Rc::new(body) }))
+        let body = Rc::new(self.block()?);
+        Ok(Rc::new(Stmt::Function(Rc::new(FunctionStmt {
+            name,
+            params: Rc::new(params),
+            body,
+        }))))
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt>, Error> {
-        let mut statements: Vec<Stmt> = Vec::new();
+    fn block(&mut self) -> Result<Vec<Rc<Stmt>>, Error> {
+        let mut statements: Vec<Rc<Stmt>> = Vec::new();
 
         while !self.check(TokenKind::RightBrace) && !self.is_at_end() {
             statements.push(self.declaration()?);
@@ -241,10 +248,10 @@ impl Parser {
 
             match expr {
                 Expr::Variable(v) => {
-                    return Ok(Expr::Assign(AssignExpr {
-                        name: v.name,
-                        value: Box::new(value),
-                    }));
+                    return Ok(Expr::Assign(Rc::new(AssignExpr {
+                        name: v.name.clone(),
+                        value: Rc::new(value),
+                    })));
                 }
                 _ => {
                     return Err(Error::parse_error(
@@ -264,11 +271,11 @@ impl Parser {
         while self.match_token(vec![TokenKind::Or]) {
             let operator = self.previous();
             let right = self.and()?;
-            expr = Expr::Logical(LogicalExpr {
-                left: Box::new(expr),
+            expr = Expr::Logical(Rc::new(LogicalExpr {
+                left: Rc::new(expr),
                 operator,
-                right: Box::new(right),
-            });
+                right: Rc::new(right),
+            }));
         }
 
         Ok(expr)
@@ -280,11 +287,11 @@ impl Parser {
         while self.match_token(vec![TokenKind::And]) {
             let operator = self.previous();
             let right = self.equality()?;
-            expr = Expr::Logical(LogicalExpr {
-                left: Box::new(expr),
+            expr = Expr::Logical(Rc::new(LogicalExpr {
+                left: Rc::new(expr),
                 operator,
-                right: Box::new(right),
-            });
+                right: Rc::new(right),
+            }));
         }
 
         Ok(expr)
@@ -296,11 +303,11 @@ impl Parser {
         while self.match_token(vec![TokenKind::NotEqual, TokenKind::EqualEqual]) {
             let operator = self.previous();
             let right = self.comparison()?;
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
+            expr = Expr::Binary(Rc::new(BinaryExpr {
+                left: Rc::new(expr),
                 operator,
-                right: Box::new(right),
-            });
+                right: Rc::new(right),
+            }));
         }
 
         Ok(expr)
@@ -317,11 +324,11 @@ impl Parser {
         ]) {
             let operator = self.previous();
             let right = self.term()?;
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
+            expr = Expr::Binary(Rc::new(BinaryExpr {
+                left: Rc::new(expr),
                 operator,
-                right: Box::new(right),
-            });
+                right: Rc::new(right),
+            }));
         }
 
         Ok(expr)
@@ -333,11 +340,11 @@ impl Parser {
         while self.match_token(vec![TokenKind::Minus, TokenKind::Plus]) {
             let operator = self.previous();
             let right = self.factor()?;
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
+            expr = Expr::Binary(Rc::new(BinaryExpr {
+                left: Rc::new(expr),
                 operator,
-                right: Box::new(right),
-            });
+                right: Rc::new(right),
+            }));
         }
 
         Ok(expr)
@@ -349,11 +356,11 @@ impl Parser {
         while self.match_token(vec![TokenKind::Slash, TokenKind::Asterisk]) {
             let operator = self.previous();
             let right = self.unary()?;
-            expr = Expr::Binary(BinaryExpr {
-                left: Box::new(expr),
+            expr = Expr::Binary(Rc::new(BinaryExpr {
+                left: Rc::new(expr),
                 operator,
-                right: Box::new(right),
-            });
+                right: Rc::new(right),
+            }));
         }
 
         Ok(expr)
@@ -363,17 +370,17 @@ impl Parser {
         if self.match_token(vec![TokenKind::Bang, TokenKind::Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
-            return Ok(Expr::Unary(UnaryExpr {
+            return Ok(Expr::Unary(Rc::new(UnaryExpr {
                 operator,
-                right: Box::new(right),
-            }));
+                right: Rc::new(right),
+            })));
         }
 
         Ok(self.call()?)
     }
 
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, Error> {
-        let mut arguments: Vec<Expr> = Vec::new();
+        let mut arguments: Vec<Rc<Expr>> = Vec::new();
 
         if !self.check(TokenKind::RightParen) {
             loop {
@@ -383,7 +390,7 @@ impl Parser {
                         "Can't have more than 255 arguments.",
                     ));
                 }
-                arguments.push(self.expression()?);
+                arguments.push(Rc::new(self.expression()?));
                 if !self.match_token(vec![TokenKind::Comma]) {
                     break;
                 }
@@ -392,11 +399,11 @@ impl Parser {
 
         let paren = self.consume(TokenKind::RightParen, "Expect ')' after arguments.")?;
 
-        Ok(Expr::Call(CallExpr {
-            callee: Box::new(callee),
+        Ok(Expr::Call(Rc::new(CallExpr {
+            callee: Rc::new(callee),
             paren,
             arguments,
-        }))
+        })))
     }
 
     fn call(&mut self) -> Result<Expr, Error> {
@@ -414,41 +421,41 @@ impl Parser {
 
     fn primary(&mut self) -> Result<Expr, Error> {
         if self.match_token(vec![TokenKind::False]) {
-            return Ok(Expr::Literal(LiteralExpr {
+            return Ok(Expr::Literal(Rc::new(LiteralExpr {
                 value: Some(Object::Bool(false)),
-            }));
+            })));
         }
 
         if self.match_token(vec![TokenKind::True]) {
-            return Ok(Expr::Literal(LiteralExpr {
+            return Ok(Expr::Literal(Rc::new(LiteralExpr {
                 value: Some(Object::Bool(true)),
-            }));
+            })));
         }
 
         if self.match_token(vec![TokenKind::Nil]) {
-            return Ok(Expr::Literal(LiteralExpr {
+            return Ok(Expr::Literal(Rc::new(LiteralExpr {
                 value: Some(Object::Nil),
-            }));
+            })));
         }
 
         if self.match_token(vec![TokenKind::Number, TokenKind::String]) {
-            return Ok(Expr::Literal(LiteralExpr {
+            return Ok(Expr::Literal(Rc::new(LiteralExpr {
                 value: self.previous().literal,
-            }));
+            })));
         }
 
         if self.match_token(vec![TokenKind::Identifier]) {
-            return Ok(Expr::Variable(VariableExpr {
+            return Ok(Expr::Variable(Rc::new(VariableExpr {
                 name: self.previous(),
-            }));
+            })));
         }
 
         if self.match_token(vec![TokenKind::LeftParen]) {
             let expr = self.expression()?;
             self.consume(TokenKind::RightParen, "Expect ')' after expression.")?;
-            return Ok(Expr::Grouping(GroupingExpr {
-                expression: Box::new(expr),
-            }));
+            return Ok(Expr::Grouping(Rc::new(GroupingExpr {
+                expression: Rc::new(expr),
+            })));
         }
 
         Err(Error::parse_error(&self.peek(), "Expect expression."))

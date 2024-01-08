@@ -7,16 +7,18 @@ use crate::native_functions::*;
 use crate::stmt::*;
 use crate::tokens::*;
 
-use std::ops::Deref;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ops::Deref;
 use std::rc::Rc;
 pub struct Interpreter {
     pub globals: Rc<RefCell<Environment>>,
     environment: RefCell<Rc<RefCell<Environment>>>,
+    locals: RefCell<HashMap<Rc<Expr>, usize>>,
 }
 
 impl StmtVisitor<()> for Interpreter {
-    fn visit_return_stmt(&self, stmt: &ReturnStmt) -> Result<(), Error> {
+    fn visit_return_stmt(&self, _: &Rc<Stmt>, stmt: &ReturnStmt) -> Result<(), Error> {
         if let Some(value) = &stmt.value {
             let value = self.evaluate(value)?;
             Err(Error::return_value(value))
@@ -24,7 +26,7 @@ impl StmtVisitor<()> for Interpreter {
             Err(Error::return_value(Object::Nil))
         }
     }
-    fn visit_function_stmt(&self, stmt: &FunctionStmt) -> Result<(), Error> {
+    fn visit_function_stmt(&self, _: &Rc<Stmt>, stmt: &FunctionStmt) -> Result<(), Error> {
         let function = Function::new(&stmt, self.environment.borrow().deref());
         self.environment.borrow().borrow_mut().define(
             stmt.name.lexeme.clone(),
@@ -35,7 +37,7 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
 
-    fn visit_if_stmt(&self, stmt: &IfStmt) -> Result<(), Error> {
+    fn visit_if_stmt(&self, _: &Rc<Stmt>, stmt: &IfStmt) -> Result<(), Error> {
         if self.is_truthy(self.evaluate(&stmt.condition)?) {
             self.execute(&stmt.then_branch)?;
         } else if let Some(else_branch) = &stmt.else_branch {
@@ -43,23 +45,27 @@ impl StmtVisitor<()> for Interpreter {
         }
         Ok(())
     }
-    fn visit_block_stmt(&self, stmt: &BlockStmt) -> Result<(), Error> {
+    fn visit_block_stmt(&self, _: &Rc<Stmt>, stmt: &BlockStmt) -> Result<(), Error> {
         let environment =
             Environment::new_with_enclosing(Rc::clone(&self.environment.borrow().clone()));
         self.execute_block(&stmt.statements, environment)
     }
-    fn visit_print_stmt(&self, stmt: &PrintStmt) -> Result<(), Error> {
+    fn visit_print_stmt(&self, _: &Rc<Stmt>, stmt: &PrintStmt) -> Result<(), Error> {
         let value = self.evaluate(&stmt.expression)?;
         println!("{}", value);
         Ok(())
     }
 
-    fn visit_expression_stmt(&self, stmt: &ExpressionStmt) -> Result<(), Error> {
+    fn visit_expression_stmt(
+        &self,
+        _: &Rc<Stmt>,
+        stmt: &ExpressionStmt,
+    ) -> Result<(), Error> {
         self.evaluate(&stmt.expression)?;
         Ok(())
     }
 
-    fn visit_var_stmt(&self, stmt: &VarStmt) -> Result<(), Error> {
+    fn visit_var_stmt(&self, _: &Rc<Stmt>, stmt: &VarStmt) -> Result<(), Error> {
         let value = if let Some(expr) = &stmt.initializer {
             self.evaluate(expr)?
         } else {
@@ -73,7 +79,7 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
 
-    fn visit_while_stmt(&self, stmt: &WhileStmt) -> Result<(), Error> {
+    fn visit_while_stmt(&self, _: &Rc<Stmt>, stmt: &WhileStmt) -> Result<(), Error> {
         while self.is_truthy(self.evaluate(&stmt.condition)?) {
             self.execute(&stmt.body)?;
         }
@@ -82,7 +88,7 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
-    fn visit_logical_expr(&self, expr: &LogicalExpr) -> Result<Object, Error> {
+    fn visit_logical_expr(&self, _: &Rc<Expr>, expr: &LogicalExpr) -> Result<Object, Error> {
         let left = self.evaluate(&expr.left)?;
 
         if expr.operator.kind == TokenKind::Or {
@@ -97,7 +103,7 @@ impl ExprVisitor<Object> for Interpreter {
 
         self.evaluate(&expr.right)
     }
-    fn visit_assign_expr(&self, expr: &AssignExpr) -> Result<Object, Error> {
+    fn visit_assign_expr(&self, _: &Rc<Expr>, expr: &AssignExpr) -> Result<Object, Error> {
         let value = self.evaluate(&expr.value)?;
         self.environment
             .borrow()
@@ -106,15 +112,19 @@ impl ExprVisitor<Object> for Interpreter {
         Ok(value)
     }
 
-    fn visit_literal_expr(&self, expr: &LiteralExpr) -> Result<Object, Error> {
+    fn visit_literal_expr(&self, _: &Rc<Expr>, expr: &LiteralExpr) -> Result<Object, Error> {
         Ok(expr.value.clone().unwrap())
     }
 
-    fn visit_grouping_expr(&self, expr: &GroupingExpr) -> Result<Object, Error> {
+    fn visit_grouping_expr(
+        &self,
+        _: &Rc<Expr>,
+        expr: &GroupingExpr,
+    ) -> Result<Object, Error> {
         Ok(self.evaluate(&expr.expression)?)
     }
 
-    fn visit_unary_expr(&self, expr: &UnaryExpr) -> Result<Object, Error> {
+    fn visit_unary_expr(&self, _: &Rc<Expr>, expr: &UnaryExpr) -> Result<Object, Error> {
         let right = self.evaluate(&expr.right)?;
 
         match expr.operator.kind {
@@ -134,7 +144,7 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_binary_expr(&self, expr: &BinaryExpr) -> Result<Object, Error> {
+    fn visit_binary_expr(&self, _: &Rc<Expr>, expr: &BinaryExpr) -> Result<Object, Error> {
         let left = self.evaluate(&expr.left)?;
         let right = self.evaluate(&expr.right)?;
         let operator = &expr.operator.kind;
@@ -208,7 +218,7 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_call_expr(&self, expr: &CallExpr) -> Result<Object, Error> {
+    fn visit_call_expr(&self, wrapper: &Rc<Expr>, expr: &CallExpr) -> Result<Object, Error> {
         let callee = self.evaluate(&expr.callee)?;
 
         let mut arguments = Vec::new();
@@ -237,8 +247,8 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_variable_expr(&self, expr: &VariableExpr) -> Result<Object, Error> {
-        self.environment.borrow().borrow().get(&expr.name)
+    fn visit_variable_expr(&self, wrapper: &Rc<Expr>, expr: &VariableExpr) -> Result<Object, Error> {
+        self.look_up_variable(&expr.name, wrapper)
     }
 }
 
@@ -256,16 +266,17 @@ impl Interpreter {
         Interpreter {
             globals: Rc::clone(&global),
             environment: RefCell::new(Rc::clone(&global)),
+            locals: RefCell::new(HashMap::new()),
         }
     }
 
-    fn execute(&self, stmt: &Stmt) -> Result<(), Error> {
-        stmt.accept(self)
+    fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), Error> {
+        stmt.accept(stmt, self)
     }
 
     pub fn execute_block(
         &self,
-        statements: &[Stmt],
+        statements: &Rc<Vec<Rc<Stmt>>>,
         environment: Environment,
     ) -> Result<(), Error> {
         let previous = self.environment.replace(Rc::new(RefCell::new(environment)));
@@ -279,10 +290,10 @@ impl Interpreter {
         result
     }
 
-    pub fn interpret(&self, statements: &[Stmt]) -> bool {
+    pub fn interpret(&self, statements: &[Rc<Stmt>]) -> bool {
         let mut success = true;
         for statment in statements {
-            if let Err(e) = self.execute(statment) {
+            if let Err(_e) = self.execute(statment) {
                 success = false;
                 break;
             }
@@ -290,8 +301,8 @@ impl Interpreter {
         success
     }
 
-    fn evaluate(&self, expr: &Expr) -> Result<Object, Error> {
-        expr.accept(self)
+    fn evaluate(&self, expr: &Rc<Expr>) -> Result<Object, Error> {
+        expr.accept(expr, self)
     }
 
     fn is_truthy(&self, object: Object) -> bool {
@@ -304,6 +315,21 @@ impl Interpreter {
 
     pub fn print_env(&self) {
         println!("{:?}", self.environment.borrow());
+    }
+
+    pub fn resolve(&self, expr: Rc<Expr>, depth: usize) {
+        self.locals.borrow_mut().insert(expr, depth);
+    }
+
+    fn look_up_variable(&self, name: &Token, expr: &Rc<Expr>) -> Result<Object, Error> {
+        if let Some(distance) = self.locals.borrow().get(expr) {
+            self.environment
+                .borrow()
+                .borrow()
+                .get_at(*distance, &name.lexeme)
+        } else {
+            self.globals.borrow().get(&name)
+        }
     }
 }
 

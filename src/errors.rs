@@ -38,7 +38,7 @@ impl Error {
         err
     }
 
-    fn report(&self, loc: &str) {
+    fn report(&self, _loc: &str) {
         match self {
             Error::ParseError { token, message }
             | Error::RuntimeError { token, message } => {
