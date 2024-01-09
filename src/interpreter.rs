@@ -18,16 +18,16 @@ pub struct Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
-    fn visit_return_stmt(&self, _: &Rc<Stmt>, stmt: &ReturnStmt) -> Result<(), Error> {
-        if let Some(value) = &stmt.value {
+    fn visit_return_stmt(&self, _: Rc<Stmt>, stmt: &ReturnStmt) -> Result<(), Error> {
+        if let Some(value) = stmt.value.clone() {
             let value = self.evaluate(value)?;
             Err(Error::return_value(value))
         } else {
             Err(Error::return_value(Object::Nil))
         }
     }
-    fn visit_function_stmt(&self, _: &Rc<Stmt>, stmt: &FunctionStmt) -> Result<(), Error> {
-        let function = Function::new(&stmt, self.environment.borrow().deref());
+    fn visit_function_stmt(&self, _: Rc<Stmt>, stmt: &FunctionStmt) -> Result<(), Error> {
+        let function = Function::new(stmt, self.environment.borrow().deref());
         self.environment.borrow().borrow_mut().define(
             stmt.name.lexeme.clone(),
             Object::Function(Callable {
@@ -37,36 +37,36 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
 
-    fn visit_if_stmt(&self, _: &Rc<Stmt>, stmt: &IfStmt) -> Result<(), Error> {
-        if self.is_truthy(self.evaluate(&stmt.condition)?) {
-            self.execute(&stmt.then_branch)?;
-        } else if let Some(else_branch) = &stmt.else_branch {
+    fn visit_if_stmt(&self, _: Rc<Stmt>, stmt: &IfStmt) -> Result<(), Error> {
+        if self.is_truthy(self.evaluate(stmt.condition.clone())?) {
+            self.execute(stmt.then_branch.clone())?;
+        } else if let Some(else_branch) = stmt.else_branch.clone() {
             self.execute(else_branch)?;
         }
         Ok(())
     }
-    fn visit_block_stmt(&self, _: &Rc<Stmt>, stmt: &BlockStmt) -> Result<(), Error> {
+    fn visit_block_stmt(&self, _: Rc<Stmt>, stmt: &BlockStmt) -> Result<(), Error> {
         let environment =
             Environment::new_with_enclosing(Rc::clone(&self.environment.borrow().clone()));
         self.execute_block(&stmt.statements, environment)
     }
-    fn visit_print_stmt(&self, _: &Rc<Stmt>, stmt: &PrintStmt) -> Result<(), Error> {
-        let value = self.evaluate(&stmt.expression)?;
+    fn visit_print_stmt(&self, _: Rc<Stmt>, stmt: &PrintStmt) -> Result<(), Error> {
+        let value = self.evaluate(stmt.expression.clone())?;
         println!("{}", value);
         Ok(())
     }
 
     fn visit_expression_stmt(
         &self,
-        _: &Rc<Stmt>,
+        _: Rc<Stmt>,
         stmt: &ExpressionStmt,
     ) -> Result<(), Error> {
-        self.evaluate(&stmt.expression)?;
+        self.evaluate(stmt.expression.clone())?;
         Ok(())
     }
 
-    fn visit_var_stmt(&self, _: &Rc<Stmt>, stmt: &VarStmt) -> Result<(), Error> {
-        let value = if let Some(expr) = &stmt.initializer {
+    fn visit_var_stmt(&self, _: Rc<Stmt>, stmt: &VarStmt) -> Result<(), Error> {
+        let value = if let Some(expr) = stmt.initializer.clone() {
             self.evaluate(expr)?
         } else {
             Object::Nil
@@ -79,17 +79,17 @@ impl StmtVisitor<()> for Interpreter {
         Ok(())
     }
 
-    fn visit_while_stmt(&self, _: &Rc<Stmt>, stmt: &WhileStmt) -> Result<(), Error> {
-        while self.is_truthy(self.evaluate(&stmt.condition)?) {
-            self.execute(&stmt.body)?;
+    fn visit_while_stmt(&self, _: Rc<Stmt>, stmt: &WhileStmt) -> Result<(), Error> {
+        while self.is_truthy(self.evaluate(stmt.condition.clone())?) {
+            self.execute(stmt.body.clone())?;
         }
         Ok(())
     }
 }
 
 impl ExprVisitor<Object> for Interpreter {
-    fn visit_logical_expr(&self, _: &Rc<Expr>, expr: &LogicalExpr) -> Result<Object, Error> {
-        let left = self.evaluate(&expr.left)?;
+    fn visit_logical_expr(&self, _: Rc<Expr>, expr: &LogicalExpr) -> Result<Object, Error> {
+        let left = self.evaluate(expr.left.clone())?;
 
         if expr.operator.kind == TokenKind::Or {
             if self.is_truthy(left.clone()) {
@@ -101,31 +101,39 @@ impl ExprVisitor<Object> for Interpreter {
             }
         }
 
-        self.evaluate(&expr.right)
+        self.evaluate(expr.right.clone())
     }
-    fn visit_assign_expr(&self, _: &Rc<Expr>, expr: &AssignExpr) -> Result<Object, Error> {
-        let value = self.evaluate(&expr.value)?;
-        self.environment
-            .borrow()
-            .borrow_mut()
-            .assign(&expr.name, value.clone())?;
+    fn visit_assign_expr(&self, wrapper: Rc<Expr>, expr: &AssignExpr) -> Result<Object, Error> {
+        let value = self.evaluate(expr.value.clone())?;
+        if let Some(distance) = self.locals.borrow().get(&wrapper) {
+            self.environment.borrow().borrow_mut().assign_at(
+                *distance,
+                &expr.name,
+                value.clone(),
+            )?;
+        } else {
+            self.globals
+                .borrow_mut()
+                .assign(&expr.name, value.clone())?;
+        }
+
         Ok(value)
     }
 
-    fn visit_literal_expr(&self, _: &Rc<Expr>, expr: &LiteralExpr) -> Result<Object, Error> {
+    fn visit_literal_expr(&self, _: Rc<Expr>, expr: &LiteralExpr) -> Result<Object, Error> {
         Ok(expr.value.clone().unwrap())
     }
 
     fn visit_grouping_expr(
         &self,
-        _: &Rc<Expr>,
+        _: Rc<Expr>,
         expr: &GroupingExpr,
     ) -> Result<Object, Error> {
-        Ok(self.evaluate(&expr.expression)?)
+        Ok(self.evaluate(expr.expression.clone())?)
     }
 
-    fn visit_unary_expr(&self, _: &Rc<Expr>, expr: &UnaryExpr) -> Result<Object, Error> {
-        let right = self.evaluate(&expr.right)?;
+    fn visit_unary_expr(&self, _: Rc<Expr>, expr: &UnaryExpr) -> Result<Object, Error> {
+        let right = self.evaluate(expr.right.clone())?;
 
         match expr.operator.kind {
             TokenKind::Minus => {
@@ -144,9 +152,9 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_binary_expr(&self, _: &Rc<Expr>, expr: &BinaryExpr) -> Result<Object, Error> {
-        let left = self.evaluate(&expr.left)?;
-        let right = self.evaluate(&expr.right)?;
+    fn visit_binary_expr(&self, _: Rc<Expr>, expr: &BinaryExpr) -> Result<Object, Error> {
+        let left = self.evaluate(expr.left.clone())?;
+        let right = self.evaluate(expr.right.clone())?;
         let operator = &expr.operator.kind;
 
         let result = match (left, right) {
@@ -218,12 +226,12 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_call_expr(&self, wrapper: &Rc<Expr>, expr: &CallExpr) -> Result<Object, Error> {
-        let callee = self.evaluate(&expr.callee)?;
+    fn visit_call_expr(&self, _: Rc<Expr>, expr: &CallExpr) -> Result<Object, Error> {
+        let callee = self.evaluate(expr.callee.clone())?;
 
         let mut arguments = Vec::new();
 
-        for argument in &expr.arguments {
+        for argument in expr.arguments.clone() {
             arguments.push(self.evaluate(argument)?);
         }
 
@@ -247,7 +255,7 @@ impl ExprVisitor<Object> for Interpreter {
         }
     }
 
-    fn visit_variable_expr(&self, wrapper: &Rc<Expr>, expr: &VariableExpr) -> Result<Object, Error> {
+    fn visit_variable_expr(&self, wrapper: Rc<Expr>, expr: &VariableExpr) -> Result<Object, Error> {
         self.look_up_variable(&expr.name, wrapper)
     }
 }
@@ -270,8 +278,8 @@ impl Interpreter {
         }
     }
 
-    fn execute(&self, stmt: &Rc<Stmt>) -> Result<(), Error> {
-        stmt.accept(stmt, self)
+    fn execute(&self, stmt: Rc<Stmt>) -> Result<(), Error> {
+        stmt.accept(stmt.clone(), self)
     }
 
     pub fn execute_block(
@@ -283,7 +291,7 @@ impl Interpreter {
 
         let result = statements
             .iter()
-            .try_for_each(|statement| self.execute(statement));
+            .try_for_each(|statement| self.execute(statement.clone()));
 
         self.environment.replace(previous);
 
@@ -292,8 +300,8 @@ impl Interpreter {
 
     pub fn interpret(&self, statements: &[Rc<Stmt>]) -> bool {
         let mut success = true;
-        for statment in statements {
-            if let Err(_e) = self.execute(statment) {
+        for statement in statements {
+            if self.execute(statement.clone()).is_err() {
                 success = false;
                 break;
             }
@@ -301,8 +309,8 @@ impl Interpreter {
         success
     }
 
-    fn evaluate(&self, expr: &Rc<Expr>) -> Result<Object, Error> {
-        expr.accept(expr, self)
+    fn evaluate(&self, expr: Rc<Expr>) -> Result<Object, Error> {
+        expr.accept(expr.clone(), self)
     }
 
     fn is_truthy(&self, object: Object) -> bool {
@@ -321,8 +329,8 @@ impl Interpreter {
         self.locals.borrow_mut().insert(expr, depth);
     }
 
-    fn look_up_variable(&self, name: &Token, expr: &Rc<Expr>) -> Result<Object, Error> {
-        if let Some(distance) = self.locals.borrow().get(expr) {
+    fn look_up_variable(&self, name: &Token, expr: Rc<Expr>) -> Result<Object, Error> {
+        if let Some(distance) = self.locals.borrow().get(&expr) {
             self.environment
                 .borrow()
                 .borrow()
@@ -733,16 +741,16 @@ mod tests {
         };
 
         let interpreter = Interpreter::new();
-        let result = interpreter.visit_var_stmt(&stmt);
+        let result = interpreter.visit_var_stmt(stmt);
 
-        let _ = interpreter.visit_var_stmt(&stmt);
+        let _ = interpreter.visit_var_stmt(stmt);
         assert!(result.is_ok());
         assert_eq!(
             interpreter
                 .environment
                 .borrow()
                 .borrow()
-                .get(&stmt.name)
+                .get(stmt.name)
                 .ok(),
             Some(Object::Num(1.0))
         );
@@ -757,16 +765,16 @@ mod tests {
         };
 
         let interpreter = Interpreter::new();
-        let result = interpreter.visit_var_stmt(&stmt);
+        let result = interpreter.visit_var_stmt(stmt);
 
-        let _ = interpreter.visit_var_stmt(&stmt);
+        let _ = interpreter.visit_var_stmt(stmt);
         assert!(result.is_ok());
         assert_eq!(
             interpreter
                 .environment
                 .borrow()
                 .borrow()
-                .get(&stmt.name)
+                .get(stmt.name)
                 .ok(),
             Some(Object::Nil)
         );

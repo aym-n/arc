@@ -8,69 +8,62 @@ struct TreeType {
     fields: Vec<String>,
 }
 
-pub fn generate_ast(output_dir: &String) -> io::Result<()> {
+pub fn generate_ast(output_dir: &str) -> io::Result<()> {
     define_ast(
         output_dir,
-        &"Expr".to_string(),
-        &vec![
-            "Assign   : Token name, Rc<Expr> value".to_string(),
-            "Binary   : Rc<Expr> left, Token operator, Rc<Expr> right".to_string(),
-            "Call     : Rc<Expr> callee, Token paren, Vec<Rc<Expr>> arguments".to_string(),
-            "Grouping : Rc<Expr> expression".to_string(),
-            "Literal  : Option<Object> value".to_string(),
-            "Logical  : Rc<Expr> left, Token operator, Rc<Expr> right".to_string(),
-            "Unary    : Token operator, Rc<Expr> right".to_string(),
-            "Variable : Token name".to_string(),
-
-        ],
-        &vec![
-            "crate::tokens::*".to_string(),
-            "crate::errors::*".to_string(),
-            "std::rc::Rc".to_string(),
+        "Expr",
+        &["errors", "tokens", "rc"],
+        &[
+            "Assign   : Token name, Rc<Expr> value",
+            "Binary   : Rc<Expr> left, Token operator, Rc<Expr> right",
+            "Call     : Rc<Expr> callee, Token paren, Vec<Rc<Expr>> arguments",
+            "Grouping : Rc<Expr> expression",
+            "Literal  : Option<Object> value",
+            "Logical  : Rc<Expr> left, Token operator, Rc<Expr> right",
+            "Unary    : Token operator, Rc<Expr> right",
+            "Variable : Token name",
         ],
     )?;
-
     define_ast(
         output_dir,
-        &"Stmt".to_string(),
-        &vec![
-            "Block      : Rc<Vec<Rc<Stmt>>> statements".to_string(),
-            "Expression : Rc<Expr> expression".to_string(),
-            "Function   : Token name, Rc<Vec<Token>> params, Rc<Vec<Rc<Stmt>>> body".to_string(),
-            "If         : Rc<Expr> condition, Rc<Stmt> then_branch, Option<Rc<Stmt>> else_branch".to_string(),
-            "Print      : Rc<Expr> expression".to_string(),
-            "Var        : Token name, Option<Rc<Expr>> initializer".to_string(),
-            "While      : Rc<Expr> condition, Rc<Stmt> body".to_string(),
-            "Return     : Token keyword, Option<Rc<Expr>> value".to_string(),
-        ],
-        &vec![
-            "crate::expr::Expr".to_string(),
-            "crate::errors::*".to_string(),
-            "crate::tokens::*".to_string(),
-            "std::rc::Rc".to_string(),
+        "Stmt",
+        &["errors", "expr", "tokens", "rc"],
+        &[
+            "Block      : Rc<Vec<Rc<Stmt>>> statements",
+            "Expression : Rc<Expr> expression",
+            "Function   : Token name, Rc<Vec<Token>> params, Rc<Vec<Rc<Stmt>>> body",
+            "If         : Rc<Expr> condition, Rc<Stmt> then_branch, Option<Rc<Stmt>> else_branch",
+            "Print      : Rc<Expr> expression",
+            "Return     : Token keyword, Option<Rc<Expr>> value",
+            "Var        : Token name, Option<Rc<Expr>> initializer",
+            "While      : Rc<Expr> condition, Rc<Stmt> body",
         ],
     )?;
     Ok(())
 }
 
 fn define_ast(
-    output_dir: &String,
-    base_name: &String,
-    types: &[String],
-    imports: &[String],
+    output_dir: &str,
+    base_name: &str,
+    imports: &[&str],
+    types: &[&str],
 ) -> io::Result<()> {
     let path = format!("{output_dir}/{}.rs", base_name.to_lowercase());
     let mut file = File::create(path)?;
     let mut tree_types = Vec::new();
 
-    for import in imports {
-        write!(file, "use {};\n", import)?;
+    for i in imports {
+        if i == &"rc" {
+            writeln!(file, "use std::rc::Rc;")?;
+        } else {
+            writeln!(file, "use crate::{}::*;", i)?;
+        }
     }
 
     for ttype in types {
         let (base_class_name, args) = ttype.split_once(":").unwrap();
         let class_name = format!("{}{}", base_class_name.trim(), base_name);
-        let arg_split = args.split(",");
+        let arg_split = args.split(',');
         let mut fields = Vec::new();
         for arg in arg_split {
             let (t2type, name) = arg.trim().split_once(" ").unwrap();
@@ -83,11 +76,11 @@ fn define_ast(
         });
     }
 
-    write!(file, "\npub enum {base_name} {{\n")?;
+    writeln!(file, "\npub enum {base_name} {{")?;
     for t in &tree_types {
-        write!(file, "    {}(Rc<{}>),\n", t.base_class_name, t.class_name)?;
+        writeln!(file, "    {}(Rc<{}>),", t.base_class_name, t.class_name)?;
     }
-    write!(file, "}}\n\n")?;
+    writeln!(file, "}}\n")?;
 
     writeln!(file, "impl PartialEq for {} {{", base_name)?;
     writeln!(file, "    fn eq(&self, other: &Self) -> bool {{")?;
@@ -118,59 +111,62 @@ fn define_ast(
     }
     writeln!(file, "        }}\n    }}\n}}\n")?;
 
-    write!(file, "impl {} {{\n", base_name)?;
-    write!(file, "    pub fn accept<T>(&self, wrapper: &Rc<{}>, {}_visitor: &dyn {base_name}Visitor<T>) -> Result<T , Error> {{\n", base_name, base_name.to_lowercase())?;
-    write!(file, "        match self {{\n")?;
+    writeln!(file, "impl {} {{", base_name)?;
+    writeln!(file, "    pub fn accept<T>(&self, wrapper: Rc<{}>, {}_visitor: &dyn {base_name}Visitor<T>) -> Result<T, Error> {{", base_name, base_name.to_lowercase())?;
+    writeln!(file, "        match self {{")?;
     for t in &tree_types {
-        write!(
+        writeln!(
             file,
-            "            {0}::{1}(v) => {3}_visitor.visit_{2}_{3}(wrapper, &v),\n",
+            "            {0}::{1}(v) => {3}_visitor.visit_{2}_{3}(wrapper, v),",
             base_name,
             t.base_class_name,
             t.base_class_name.to_lowercase(),
-            base_name.to_lowercase()
+            base_name.to_lowercase(),
         )?;
     }
-    write!(file, "        }}\n")?;
-    write!(file, "    }}\n")?;
-    write!(file, "}}\n\n")?;
+    writeln!(file, "        }}")?;
+    writeln!(file, "    }}")?;
+    writeln!(file, "}}\n")?;
 
     for t in &tree_types {
-        write!(file, "pub struct {} {{\n", t.class_name)?;
+        writeln!(file, "pub struct {} {{", t.class_name)?;
         for f in &t.fields {
-            write!(file, "    pub {},\n", f)?;
+            writeln!(file, "    pub {},", f)?;
         }
-        write!(file, "}}\n\n")?;
+        writeln!(file, "}}\n")?;
     }
 
-    write!(file, "pub trait {}Visitor<T> {{\n", base_name)?;
+    writeln!(file, "pub trait {}Visitor<T> {{", base_name)?;
     for t in &tree_types {
-        write!(
+        writeln!(
             file,
-            "    fn visit_{0}_{1}(&self, wrapper: &Rc<{3}>, {1}: &{2}) ->  Result<T , Error>;\n",
+            "    fn visit_{0}_{1}(&self, wrapper: Rc<{3}>, {1}: &{2}) -> Result<T, Error>;",
             t.base_class_name.to_lowercase(),
             base_name.to_lowercase(),
             t.class_name,
-            base_name,
+            base_name
         )?;
     }
-    write!(file, "}}\n\n")?;
+    writeln!(file, "}}\n")?;
 
-    // for t in &tree_types {
-    //     write!(file, "impl {} {{\n", t.class_name)?;
-    //     write!(
-    //         file,
-    //         "    pub fn accept<T>(&self, visitor: &dyn {}Visitor<T>) ->  Result<T , Error> {{\n",
-    //         base_name
-    //     )?;
-    //     write!(
-    //         file,
-    //         "        visitor.visit_{}_{}(self)\n",
-    //         t.base_class_name.to_lowercase(),
-    //         base_name.to_lowercase()
-    //     )?;
-    //     write!(file, "    }}\n")?;
-    //     write!(file, "}}\n\n")?;
-    // }
+    /*
+    for t in &tree_types {
+        writeln!(file, "impl {} {{", t.class_name)?;
+        writeln!(
+            file,
+            "    pub fn accept<T>(&self, visitor: &dyn {}Visitor<T>) -> Result<T, Error> {{",
+            base_name
+        )?;
+        writeln!(
+            file,
+            "        visitor.visit_{}_{}(self)",
+            t.base_class_name.to_lowercase(),
+            base_name.to_lowercase()
+        )?;
+        writeln!(file, "    }}")?;
+        writeln!(file, "}}\n")?;
+    }
+    */
+
     Ok(())
 }

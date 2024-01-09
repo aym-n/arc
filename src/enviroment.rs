@@ -30,6 +30,23 @@ impl Environment {
         self.values.insert(name, value);
     }
 
+    pub fn get_at(&self, distance: usize, name: &str) -> Result<Object, Error> {
+        if distance == 0 {
+            Ok(self.values.get(name).unwrap().clone())
+        }else{
+            self.enclosing.as_ref().unwrap().borrow().get_at(distance - 1, name)
+        }
+    }
+
+    pub fn assign_at(&mut self, distance: usize, name: &Token, value: Object) -> Result<(), Error> {
+        if distance == 0 {
+            self.values.insert(name.lexeme.clone(), value);
+            Ok(())
+        }else{
+            self.enclosing.as_ref().unwrap().borrow_mut().assign_at(distance - 1, name, value)
+        }
+    }
+
     pub fn get(&self, token: &Token) -> Result<Object, Error> {
         match self.values.get(&token.lexeme) {
             Some(value) => Ok(value.clone()),

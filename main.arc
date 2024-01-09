@@ -1,8 +1,20 @@
-fn fib(n) {
-  if (n <= 1) return n;
-  return fib(n - 2) + fib(n - 1);
-}
 
-for(var i = 0; i < 100; i = i + 1){
-  print fib(i);
+var a = "global a";
+var b = "global b";
+var c = "global c";
+{
+  var a = "outer a";
+  var b = "outer b";
+  {
+    var a = "inner a";
+    print a;
+    print b;
+    print c;
+  }
+  print a;
+  print b;
+  print c;
 }
+print a;
+print b;
+print c;

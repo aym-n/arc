@@ -31,6 +31,9 @@ mod native_functions;
 mod functions;
 
 mod resolver;
+use resolver::*;
+
+use std::rc::Rc;
 
 fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
@@ -38,13 +41,15 @@ fn eval(source: &str) -> Result<(), Error> {
     tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
 
     let mut parser = Parser::new(tokens);
-    let statements = parser.parse()?;
+    let statements = parser.parse();
 
     let interpreter = Interpreter::new();
-    if !interpreter.interpret(&statements) {
-        std::process::exit(1);
+    let s = Rc::new(statements?);
+    let resolver = Resolver::new(&interpreter);
+    resolver.resolve(&Rc::clone(&s));
+    if resolver.success(){
+        interpreter.interpret(&Rc::clone(&s));
     }
-
     Ok(())
 }
 
@@ -65,13 +70,22 @@ fn repl() {
                 tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
 
                 let mut parser = Parser::new(tokens);
-                match parser.parse() {
+                let statements = parser.parse();
+
+                match statements {
                     Ok(statements) => {
-                        if !interpreter.interpret(&statements) {
-                            std::process::exit(1);
+                        let s = Rc::new(statements);
+                        let mut resolver = Resolver::new(&interpreter);
+                        resolver.resolve(&Rc::clone(&s));
+
+                        if resolver.success() {
+                            if !interpreter.interpret(&Rc::clone(&s)) {
+                                std::process::exit(1);
+                            }
                         }
+
                     }
-                    _ => {}
+                    Err(e) => println!("Error"),
                 }
             }
         }
