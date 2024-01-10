@@ -1,7 +1,6 @@
 class Foo {
   init() {
     print this;
-    return 10;
   }
 }
 

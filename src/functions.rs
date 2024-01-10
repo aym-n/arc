@@ -67,7 +67,7 @@ impl Function {
 
 impl CallableTrait for Function {
 
-    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error> {
+    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>, _class: Option<Rc<ClassStruct>>) -> Result<Object, Error> {
         let mut e = Environment::new_with_enclosing(Rc::clone(&self.closure));
 
         for (param , arg) in self.params.iter().zip(arguments.iter()) {

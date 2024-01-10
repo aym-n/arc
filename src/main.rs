@@ -40,7 +40,6 @@ mod instance;
 fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
     let mut tokens: Vec<Token> = lexer.collect();
-    tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
 
     let mut parser = Parser::new(tokens);
     let statements = parser.parse();
@@ -69,7 +68,6 @@ fn repl() {
             _ => {
                 let lexer = Lexer::new(input);
                 let mut tokens: Vec<Token> = lexer.collect();
-                tokens.push(Token::new(TokenKind::EOF, "".to_string(), None, 0));
 
                 let mut parser = Parser::new(tokens);
                 let statements = parser.parse();

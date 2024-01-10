@@ -10,7 +10,7 @@ pub struct Lexer {
 impl Lexer {
     pub fn new(input: String) -> Lexer {
         Lexer {
-            input,
+            input: input + "\0",
             start: 0,
             current: 0,
             line: 1,
@@ -103,7 +103,7 @@ impl Lexer {
     }
 
     fn is_at_end(&self) -> bool {
-        self.current >= self.input.len()
+        self.current > self.input.len() - 1
     }
 }
 

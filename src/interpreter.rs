@@ -20,6 +20,23 @@ pub struct Interpreter {
 impl StmtVisitor<()> for Interpreter {
 
     fn visit_class_stmt(&self, _: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), Error> {
+        let superclass = if let Some(superclass_expr) = &stmt.superclass {
+            let superclass = self.evaluate(superclass_expr.clone())?;
+
+            if let Object::Class(c) = superclass {
+                Some(c)
+            } else if let Expr::Variable(v) = superclass_expr.deref() {
+                return Err(Error::runtime_error(
+                    &v.name,
+                    "Superclass must be a class.",
+                ));
+            } else {
+                panic!("could not extract variable expr");
+            }
+        } else {
+            None
+        };
+        
         self.environment
             .borrow()
             .borrow_mut()
@@ -41,7 +58,7 @@ impl StmtVisitor<()> for Interpreter {
             };
         }
 
-        let cls = Object::Class(Rc::new(ClassStruct::new(stmt.name.lexeme.clone(), methods)));
+        let cls = Object::Class(Rc::new(ClassStruct::new(stmt.name.lexeme.clone(), superclass, methods)));
 
         self.environment
             .borrow()
@@ -289,36 +306,36 @@ impl ExprVisitor<Object> for Interpreter {
             arguments.push(self.evaluate(argument)?);
         }
 
-        if let Object::Function(function) = callee {
-            if arguments.len() != function.arity() {
+        let (callfunc, cls): (Option<Rc<dyn CallableTrait>>, Option<Rc<ClassStruct>>) =
+            match callee {
+                Object::Function(func) => (Some(func), None),
+                Object::Native(native) => (Some(native.func.clone()), None),
+                Object::Class(cls) => {
+                    let class = Rc::clone(&cls);
+                    (Some(cls), Some(class))
+                },
+                _ => (None, None),
+            };
+        
+        if let Some(callfunc) = callfunc {
+            if arguments.len() != callfunc.arity() {
                 return Err(Error::runtime_error(
                     &expr.paren,
                     &format!(
-                        "Expected {} arguments but got {}",
-                        function.arity(),
+                        "Expected {} arguments but got {}.",
+                        callfunc.arity(),
                         arguments.len()
                     ),
                 ));
             }
-            function.call(self, &arguments)
-        } else if let Object::Class(cls) = callee {
-            if arguments.len() != cls.arity() {
-                return Err(Error::runtime_error(
-                    &expr.paren,
-                    &format!(
-                        "Expected {} arguments but got {}",
-                        cls.arity(),
-                        arguments.len()
-                    ),
-                ));
-            }
-            cls.instantiate(self, arguments, Rc::clone(&cls))
+            callfunc.call(self, &arguments, cls)
         } else {
-            return Err(Error::runtime_error(
+            Err(Error::runtime_error(
                 &expr.paren,
-                "Can only call functions and classes",
-            ));
+                "Can only call functions and classes.",
+            ))
         }
+
     }
 
     fn visit_variable_expr(&self, wrapper: Rc<Expr>, expr: &VariableExpr) -> Result<Object, Error> {
@@ -330,12 +347,12 @@ impl Interpreter {
     pub fn new() -> Interpreter {
         let global = Rc::new(RefCell::new(Environment::new()));
 
-        // global.borrow_mut().define(
-        //     "clock".to_string(),
-        //     Object::Function(Callable {
-        //         func: Rc::new(NativeClock {}),
-        //     }),
-        // );
+        global.borrow_mut().define(
+            "clock".to_string(),
+            Object::Native(Rc::new(Native{
+                func: Rc::new(NativeClock{}),
+            }))
+        );
 
         Interpreter {
             globals: Rc::clone(&global),

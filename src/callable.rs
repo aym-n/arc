@@ -1,6 +1,6 @@
 
 use crate::interpreter::Interpreter;
-use crate::tokens::Object;
+use crate::tokens::*;
 use crate::errors::Error;
 use std::rc::Rc;
 use core::fmt::Debug;
@@ -31,14 +31,14 @@ impl PartialEq for Callable{
 
 
 pub trait CallableTrait {
-    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error>;
+    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>, class: Option<Rc<ClassStruct>>) -> Result<Object, Error>;
     fn arity(&self) -> usize;
     fn stringify(&self) -> String;
 }
 
 impl CallableTrait for Callable {
-    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error> {
-        self.func.call(interpreter, arguments)
+    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>, _class: Option<Rc<ClassStruct>>) -> Result<Object, Error> {
+        self.func.call(interpreter, arguments, None)
     }
 
     fn arity(&self) -> usize {

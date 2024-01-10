@@ -7,6 +7,7 @@ use std::rc::Rc;
 use crate::instance::*;
 use std::collections::HashMap;
 use crate::functions::*;
+use crate::native_functions::*;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum TokenKind {
@@ -73,6 +74,7 @@ pub enum Object {
     Function(Rc<Function>),
     Class(Rc<ClassStruct>),
     Instance(Rc<InstanceStruct>),
+    Native(Rc<Native>),
     Nil,
     ArithmeticError,
 }
@@ -86,6 +88,7 @@ impl fmt::Display for Object {
             Object::Bool(x) => write!(f, "{x}"),
             Object::ArithmeticError => write!(f, "Arithmetic Error"),
             Object::Function(_) => write!(f, "<func>"),
+            Object::Native(_) => write!(f, "<native>"),
             Object::Class(c) => write!(f, "<class {}>", c.name),
             Object::Instance(i) => write!(f, "<instance {}>", i.class.name),
         }
@@ -102,13 +105,15 @@ impl fmt::Display for Token {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClassStruct {
     pub name: String,
+    superclass: Option<Rc<ClassStruct>>,
     methods: HashMap<String, Object>,
 }
 
 impl ClassStruct {
-    pub fn new(name: String, methods: HashMap<String, Object>) -> Self {
+    pub fn new(name: String, superclass: Option<Rc<ClassStruct>>, methods: HashMap<String, Object>) -> Self {
         ClassStruct {
             name,
+            superclass,
             methods,
         }
     }
@@ -117,7 +122,7 @@ impl ClassStruct {
         let instance = Object::Instance(Rc::new(InstanceStruct::new(cls)));
         if let Some(Object::Function(initializer)) = self.find_method("init".to_string()){
             if let Object::Function(initializer) = initializer.bind(&instance) {
-                initializer.call(interpreter, &arguments)?;
+                initializer.call(interpreter, &arguments, None)?;
             }
         }
         Ok(instance)
@@ -129,8 +134,8 @@ impl ClassStruct {
 }
 
 impl CallableTrait for ClassStruct {
-    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error> {
-        Ok(Object::Num(237.0))
+    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>, class: Option<Rc<ClassStruct>>) -> Result<Object, Error> {
+        self.instantiate(interpreter, arguments.clone(), class.unwrap())
     }
 
     fn arity(&self) -> usize {

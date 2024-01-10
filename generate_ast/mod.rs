@@ -33,7 +33,7 @@ pub fn generate_ast(output_dir: &str) -> io::Result<()> {
         &["errors", "expr", "tokens", "rc"],
         &[
             "Block      : Rc<Vec<Rc<Stmt>>> statements",
-            "Class      : Token name, Rc<Vec<Rc<Stmt>>> methods",
+            "Class      : Token name, Option<Rc<Expr>> superclass, Rc<Vec<Rc<Stmt>>> methods",
             "Expression : Rc<Expr> expression",
             "Function   : Token name, Rc<Vec<Token>> params, Rc<Vec<Rc<Stmt>>> body",
             "If         : Rc<Expr> condition, Rc<Stmt> then_branch, Option<Rc<Stmt>> else_branch",
