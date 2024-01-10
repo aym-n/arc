@@ -476,6 +476,12 @@ impl Parser {
             })));
         }
 
+        if self.match_token(vec![TokenKind::This]) {
+            return Ok(Expr::This(Rc::new(ThisExpr {
+                keyword: self.previous(),
+            })));
+        }
+
         if self.match_token(vec![TokenKind::Identifier]) {
             return Ok(Expr::Variable(Rc::new(VariableExpr {
                 name: self.previous(),

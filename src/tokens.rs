@@ -6,6 +6,7 @@ use crate::callable::*;
 use std::rc::Rc;
 use crate::instance::*;
 use std::collections::HashMap;
+use crate::functions::*;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum TokenKind {
@@ -69,7 +70,7 @@ pub enum Object {
     Num(f64),
     Str(String),
     Bool(bool),
-    Function(Callable),
+    Function(Rc<Function>),
     Class(Rc<ClassStruct>),
     Instance(Rc<InstanceStruct>),
     Nil,

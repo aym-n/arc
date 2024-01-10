@@ -48,20 +48,18 @@ impl Environment {
     }
 
     pub fn get(&self, token: &Token) -> Result<Object, Error> {
-        match self.values.get(&token.lexeme) {
-            Some(value) => Ok(value.clone()),
-            None => {
-                match &self.enclosing {
-                    Some(env) => env.borrow().get(token),
-                    None => Err(Error::parse_error(
-                        token,
-                        &format!("Undefined variable '{}'.", token.lexeme),
-                    )),
-                }
-            }
+        if let Some(object) = self.values.get(&token.lexeme) {
+            Ok(object.clone())
+        } else if let Some(enclosing) = &self.enclosing {
+            enclosing.borrow().get(token)
+        } else {
+            Err(Error::parse_error(
+                token,
+                &format!("Undefined variable '{}'.", token.lexeme),
+            ))
         }
     }
-
+    
     pub fn assign(&mut self, name: &Token, value: Object) -> Result<(), Error> {
         match self.values.get_mut(&name.lexeme) {
             Some(v) => {

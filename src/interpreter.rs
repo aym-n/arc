@@ -18,6 +18,7 @@ pub struct Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
+
     fn visit_class_stmt(&self, _: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), Error> {
         self.environment
             .borrow()
@@ -27,9 +28,9 @@ impl StmtVisitor<()> for Interpreter {
         let mut methods = HashMap::new();
         for method in stmt.methods.deref() {
             if let Stmt::Function(func) = method.deref() {
-                let function = Object::Function(Callable {
-                    func: Rc::new(Function::new(func, self.environment.borrow().deref())),
-                });
+                let function = Object::Function(Rc::new(
+                    Function::new(func, self.environment.borrow().deref()),
+                ));
                 methods.insert(func.name.lexeme.clone(), function);
             } else {
                 return Err(Error::runtime_error(
@@ -60,9 +61,7 @@ impl StmtVisitor<()> for Interpreter {
         let function = Function::new(stmt, self.environment.borrow().deref());
         self.environment.borrow().borrow_mut().define(
             stmt.name.lexeme.clone(),
-            Object::Function(Callable {
-                func: Rc::new(function),
-            }),
+            Object::Function(Rc::new(function)),
         );
         Ok(())
     }
@@ -114,6 +113,11 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
+
+    fn visit_this_expr(&self, wrapper: Rc<Expr>, expr: &ThisExpr) -> Result<Object, Error> {
+        self.look_up_variable(&expr.keyword, wrapper)
+    }
+    
     fn visit_set_expr(&self, wrapper: Rc<Expr>, expr: &SetExpr) -> Result<Object, Error> {
         let object = self.evaluate(expr.object.clone())?;
 
@@ -131,13 +135,15 @@ impl ExprVisitor<Object> for Interpreter {
 
     fn visit_get_expr(&self, wrapper: Rc<Expr>, expr: &GetExpr) -> Result<Object, Error> {
         let object = self.evaluate(expr.object.clone())?;
+
         if let Object::Instance(inst) = object {
-            return inst.get(&expr.name);
+            return Ok(inst.get(&expr.name, &inst)?);
+        } else {
+            Err(Error::runtime_error(
+                &expr.name,
+                "Only instances have fields.",
+            ))
         }
-        Err(Error::runtime_error(
-            &expr.name,
-            "Only instances have properties.",
-        ))
     }
     fn visit_logical_expr(&self, _: Rc<Expr>, expr: &LogicalExpr) -> Result<Object, Error> {
         let left = self.evaluate(expr.left.clone())?;
@@ -293,7 +299,7 @@ impl ExprVisitor<Object> for Interpreter {
                     ),
                 ));
             }
-            function.func.call(self, &arguments)
+            function.call(self, &arguments)
         } else if let Object::Class(cls) = callee {
             if arguments.len() != cls.arity() {
                 return Err(Error::runtime_error(
@@ -323,12 +329,12 @@ impl Interpreter {
     pub fn new() -> Interpreter {
         let global = Rc::new(RefCell::new(Environment::new()));
 
-        global.borrow_mut().define(
-            "clock".to_string(),
-            Object::Function(Callable {
-                func: Rc::new(NativeClock {}),
-            }),
-        );
+        // global.borrow_mut().define(
+        //     "clock".to_string(),
+        //     Object::Function(Callable {
+        //         func: Rc::new(NativeClock {}),
+        //     }),
+        // );
 
         Interpreter {
             globals: Rc::clone(&global),

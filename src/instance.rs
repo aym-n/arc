@@ -19,11 +19,15 @@ impl InstanceStruct {
         }
     }
 
-    pub fn get(&self, name: &Token) -> Result<Object, Error> {
-        if let Entry::Occupied(entry) = self.fields.borrow_mut().entry(name.lexeme.clone()) {
-            Ok(entry.get().clone())
+    pub fn get(&self, name: &Token, this: &Rc<InstanceStruct>) -> Result<Object, Error> {
+        if let Entry::Occupied(o) = self.fields.borrow_mut().entry(name.lexeme.clone()) {
+            Ok(o.get().clone())
         } else if let Some(method) = self.class.find_method(name.lexeme.clone()) {
-            Ok(method)
+            if let Object::Function(function) = method {
+                Ok(function.bind(&Object::Instance(Rc::clone(this))))
+            } else {
+                panic!("tried to bind `this` to a non-function")
+            }
         } else {
             Err(Error::runtime_error(
                 name,
