@@ -18,7 +18,6 @@ pub struct Interpreter {
 }
 
 impl StmtVisitor<()> for Interpreter {
-
     fn visit_class_stmt(&self, _: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), Error> {
         let superclass = if let Some(superclass_expr) = &stmt.superclass {
             let superclass = self.evaluate(superclass_expr.clone())?;
@@ -26,29 +25,36 @@ impl StmtVisitor<()> for Interpreter {
             if let Object::Class(c) = superclass {
                 Some(c)
             } else if let Expr::Variable(v) = superclass_expr.deref() {
-                return Err(Error::runtime_error(
-                    &v.name,
-                    "Superclass must be a class.",
-                ));
+                return Err(Error::runtime_error(&v.name, "Superclass must be a class."));
             } else {
                 panic!("could not extract variable expr");
             }
         } else {
             None
         };
-        
+
         self.environment
             .borrow()
             .borrow_mut()
             .define(stmt.name.lexeme.clone(), Object::Nil);
 
+        let enclosing = if let Some(ref s) = superclass {
+            let mut e = Environment::new_with_enclosing(self.environment.borrow().clone());
+            e.define("super".to_string(), Object::Class(s.clone()));
+            Some(self.environment.replace(Rc::new(RefCell::new(e))))
+        } else {
+            None
+        };
+
         let mut methods = HashMap::new();
         for method in stmt.methods.deref() {
             if let Stmt::Function(func) = method.deref() {
                 let is_initializer = func.name.lexeme == "init";
-                let function = Object::Function(Rc::new(
-                    Function::new(func, self.environment.borrow().deref(), is_initializer),
-                ));
+                let function = Object::Function(Rc::new(Function::new(
+                    func,
+                    self.environment.borrow().deref(),
+                    is_initializer,
+                )));
                 methods.insert(func.name.lexeme.clone(), function);
             } else {
                 return Err(Error::runtime_error(
@@ -58,7 +64,15 @@ impl StmtVisitor<()> for Interpreter {
             };
         }
 
-        let cls = Object::Class(Rc::new(ClassStruct::new(stmt.name.lexeme.clone(), superclass, methods)));
+        let cls = Object::Class(Rc::new(ClassStruct::new(
+            stmt.name.lexeme.clone(),
+            superclass,
+            methods,
+        )));
+
+        if let Some(previous) = enclosing {
+            self.environment.replace(previous);
+        }
 
         self.environment
             .borrow()
@@ -131,11 +145,50 @@ impl StmtVisitor<()> for Interpreter {
 }
 
 impl ExprVisitor<Object> for Interpreter {
+    fn visit_super_expr(&self, wrapper: Rc<Expr>, expr: &SuperExpr) -> Result<Object, Error> {
+        let distance = *self.locals.borrow().get(&wrapper).unwrap();
+        let superclass = if let Some(sc) = self
+            .environment
+            .borrow()
+            .borrow()
+            .get_at(distance, "super")
+            .ok()
+        {
+            if let Object::Class(superclass) = sc {
+                superclass
+            } else {
+                panic!("Unable to extract superclass");
+            }
+        } else {
+            panic!("Unable to extract superclass");
+        };
+
+        let object = self
+            .environment
+            .borrow()
+            .borrow()
+            .get_at(distance - 1, "this")
+            .ok()
+            .unwrap();
+
+        if let Some(method) = superclass.find_method(expr.method.lexeme.clone()) {
+            if let Object::Function(func) = method {
+                Ok(func.bind(&object))
+            } else {
+                panic!("method was not a function");
+            }
+        } else {
+            Err(Error::runtime_error(
+                &expr.method,
+                &format!("Undefined property '{}'.", expr.method.lexeme),
+            ))
+        }
+    }
 
     fn visit_this_expr(&self, wrapper: Rc<Expr>, expr: &ThisExpr) -> Result<Object, Error> {
         self.look_up_variable(&expr.keyword, wrapper)
     }
-    
+
     fn visit_set_expr(&self, wrapper: Rc<Expr>, expr: &SetExpr) -> Result<Object, Error> {
         let object = self.evaluate(expr.object.clone())?;
 
@@ -306,17 +359,17 @@ impl ExprVisitor<Object> for Interpreter {
             arguments.push(self.evaluate(argument)?);
         }
 
-        let (callfunc, cls): (Option<Rc<dyn CallableTrait>>, Option<Rc<ClassStruct>>) =
-            match callee {
-                Object::Function(func) => (Some(func), None),
-                Object::Native(native) => (Some(native.func.clone()), None),
-                Object::Class(cls) => {
-                    let class = Rc::clone(&cls);
-                    (Some(cls), Some(class))
-                },
-                _ => (None, None),
-            };
-        
+        let (callfunc, cls): (Option<Rc<dyn CallableTrait>>, Option<Rc<ClassStruct>>) = match callee
+        {
+            Object::Function(func) => (Some(func), None),
+            Object::Native(native) => (Some(native.func.clone()), None),
+            Object::Class(cls) => {
+                let class = Rc::clone(&cls);
+                (Some(cls), Some(class))
+            }
+            _ => (None, None),
+        };
+
         if let Some(callfunc) = callfunc {
             if arguments.len() != callfunc.arity() {
                 return Err(Error::runtime_error(
@@ -335,7 +388,6 @@ impl ExprVisitor<Object> for Interpreter {
                 "Can only call functions and classes.",
             ))
         }
-
     }
 
     fn visit_variable_expr(&self, wrapper: Rc<Expr>, expr: &VariableExpr) -> Result<Object, Error> {
@@ -349,9 +401,9 @@ impl Interpreter {
 
         global.borrow_mut().define(
             "clock".to_string(),
-            Object::Native(Rc::new(Native{
-                func: Rc::new(NativeClock{}),
-            }))
+            Object::Native(Rc::new(Native {
+                func: Rc::new(NativeClock {}),
+            })),
         );
 
         Interpreter {

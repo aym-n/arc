@@ -29,6 +29,7 @@ enum FunctionType {
 enum ClassType {
     None,
     Class,
+    SubClass,
 }
 
 
@@ -41,12 +42,26 @@ impl<'a> StmtVisitor<()> for Resolver<'a>{
         self.define(&stmt.name);
 
         if let Some(superclass) = stmt.superclass.clone() {
+
+            self.current_class.replace(ClassType::SubClass);
+
             if let Expr::Variable(v) = &superclass.deref() {
                 if v.name.lexeme == stmt.name.lexeme {
                     return Err(Error::runtime_error(&v.name, "A class cannot inherit from itself."));
                 }
             }
             self.resolve_expr(superclass);
+
+            self.begin_scope();
+            self.scopes
+                .borrow()
+                .last()
+                .unwrap()
+                .borrow_mut()
+                .insert("super".to_string(), true);
+
+            self.begin_scope();
+            self.scopes.borrow().last().unwrap().borrow_mut().insert("super".to_string(), true);
         }
 
         self.begin_scope();
@@ -64,8 +79,12 @@ impl<'a> StmtVisitor<()> for Resolver<'a>{
                 return Err(Error::runtime_error(&stmt.name, "Class method did not resolve to a function."));
             }
         }
-
         self.end_scope();
+
+        if stmt.superclass.is_some(){
+            self.end_scope();
+        }
+
         self.current_class.replace(enclosing_class);
 
         Ok(())
@@ -132,6 +151,24 @@ impl<'a> StmtVisitor<()> for Resolver<'a>{
 }
 
 impl<'a> ExprVisitor<()> for Resolver<'a>{
+    fn visit_super_expr(&self, wrapper: Rc<Expr>, expr: &SuperExpr) -> Result<(), Error> {
+        match self.current_class.borrow().deref() {
+            ClassType::None => {
+                self.error(&expr.keyword, "Can't use 'super' outside of a class.");
+            }
+            ClassType::SubClass => {}
+            _ => {
+                self.error(
+                    &expr.keyword,
+                    "Can't use 'super' in a class with no superclass.",
+                );
+            }
+        }
+
+        self.resolve_local(wrapper, &expr.keyword);
+        Ok(())
+    }
+        
     fn visit_this_expr(&self, wrapper: Rc<Expr>, expr: &ThisExpr) -> Result<(), Error> {
         if *self.current_class.borrow() == ClassType::None {
             self.error(&expr.keyword, "Cannot use 'this' outside of a class.");
