@@ -12,6 +12,7 @@ use crate::interpreter::Interpreter;
 pub struct Function {
     name : Token,
     params : Rc<Vec<Token>>,
+    is_initializer: bool,
     body : Rc<Vec<Rc<Stmt>>>,
     closure: Rc<RefCell<Environment>>,
 }
@@ -26,6 +27,7 @@ impl Clone for Function {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
+            is_initializer: self.is_initializer,
             params: Rc::clone(&self.params),
             body: Rc::clone(&self.body),
             closure: Rc::clone(&self.closure),
@@ -40,12 +42,13 @@ impl PartialEq for Function {
 }
 
 impl Function {
-    pub fn new(declaration: &FunctionStmt, closure: &Rc<RefCell<Environment>>) -> Self {
+    pub fn new(declaration: &FunctionStmt, closure: &Rc<RefCell<Environment>>, is_initializer: bool) -> Self {
         Self {
             name: declaration.name.clone(),
             params: Rc::clone(&declaration.params),
             body: Rc::clone(&declaration.body),
             closure: Rc::clone(&closure),
+            is_initializer: is_initializer,
         }
     }
 
@@ -54,6 +57,7 @@ impl Function {
         e.borrow_mut().define("this".to_string(), instance.clone());
         Object::Function(Rc::new(Self {
             name: self.name.clone(),
+            is_initializer: self.is_initializer,
             params: Rc::clone(&self.params),
             body: Rc::clone(&self.body),
             closure: Rc::new(e),
@@ -71,10 +75,19 @@ impl CallableTrait for Function {
         }
 
         match interpreter.execute_block(&self.body, e) {
-            Ok(_) => Ok(Object::Nil),
+            Ok(_) => {
+                if self.is_initializer {
+                    return Ok(self.closure.borrow().get_at(0, "this").unwrap());
+                }
+                Ok(Object::Nil)
+            }
             Err(e) => {
                 match e {
-                    Error::Return { value } => Ok(value),
+                    Error::Return { value } => if self.is_initializer {
+                        Ok(self.closure.borrow().get_at(0, "this").unwrap())
+                    } else {
+                        Ok(value)
+                    }
                     _ => Err(e),
                 }
             }

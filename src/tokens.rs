@@ -113,8 +113,14 @@ impl ClassStruct {
         }
     }
 
-    pub fn instantiate(&self, _interpreter: &Interpreter, _arguments: Vec<Object>, cls: Rc<ClassStruct>) -> Result<Object, Error> {
-        Ok(Object::Instance(Rc::new(InstanceStruct::new(cls))))
+    pub fn instantiate(&self, interpreter: &Interpreter, arguments: Vec<Object>, cls: Rc<ClassStruct>) -> Result<Object, Error> {
+        let instance = Object::Instance(Rc::new(InstanceStruct::new(cls)));
+        if let Some(Object::Function(initializer)) = self.find_method("init".to_string()){
+            if let Object::Function(initializer) = initializer.bind(&instance) {
+                initializer.call(interpreter, &arguments)?;
+            }
+        }
+        Ok(instance)
     }
 
     pub fn find_method(&self, name: String) -> Option<Object> {
@@ -128,6 +134,9 @@ impl CallableTrait for ClassStruct {
     }
 
     fn arity(&self) -> usize {
+        if let Some(Object::Function(initializer)) = self.find_method("init".to_string()){
+            return initializer.arity();
+        }
         0
     }
 

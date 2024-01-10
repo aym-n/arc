@@ -1,7 +1,9 @@
-class Bacon {
-  eat() {
-    print "Crunch crunch crunch!";
+class Foo {
+  init() {
+    print this;
+    return 10;
   }
 }
 
-Bacon().eat();
+var foo = Foo();
+print foo.init();

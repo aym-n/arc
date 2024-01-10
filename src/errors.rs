@@ -1,5 +1,6 @@
 use crate::tokens::*;
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Error {
     ParseError { token: Token, message: String },
     RuntimeError { token: Token, message: String },

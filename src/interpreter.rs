@@ -28,8 +28,9 @@ impl StmtVisitor<()> for Interpreter {
         let mut methods = HashMap::new();
         for method in stmt.methods.deref() {
             if let Stmt::Function(func) = method.deref() {
+                let is_initializer = func.name.lexeme == "init";
                 let function = Object::Function(Rc::new(
-                    Function::new(func, self.environment.borrow().deref()),
+                    Function::new(func, self.environment.borrow().deref(), is_initializer),
                 ));
                 methods.insert(func.name.lexeme.clone(), function);
             } else {
@@ -58,7 +59,7 @@ impl StmtVisitor<()> for Interpreter {
         }
     }
     fn visit_function_stmt(&self, _: Rc<Stmt>, stmt: &FunctionStmt) -> Result<(), Error> {
-        let function = Function::new(stmt, self.environment.borrow().deref());
+        let function = Function::new(stmt, self.environment.borrow().deref(), false);
         self.environment.borrow().borrow_mut().define(
             stmt.name.lexeme.clone(),
             Object::Function(Rc::new(function)),
