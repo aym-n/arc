@@ -35,6 +35,8 @@ use resolver::*;
 
 use std::rc::Rc;
 
+mod instance;
+
 fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
     let mut tokens: Vec<Token> = lexer.collect();

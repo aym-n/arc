@@ -1,5 +1,11 @@
 use std::fmt;
 use crate::callable::Callable;
+use crate::errors::*;
+use crate::interpreter::Interpreter;
+use crate::callable::*;
+use std::rc::Rc;
+use crate::instance::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum TokenKind {
@@ -64,6 +70,8 @@ pub enum Object {
     Str(String),
     Bool(bool),
     Function(Callable),
+    Class(Rc<ClassStruct>),
+    Instance(Rc<InstanceStruct>),
     Nil,
     ArithmeticError,
 }
@@ -77,6 +85,8 @@ impl fmt::Display for Object {
             Object::Bool(x) => write!(f, "{x}"),
             Object::ArithmeticError => write!(f, "Arithmetic Error"),
             Object::Function(_) => write!(f, "<func>"),
+            Object::Class(c) => write!(f, "<class {}>", c.name),
+            Object::Instance(i) => write!(f, "<instance {}>", i.class.name),
         }
     }
 }
@@ -85,6 +95,43 @@ impl fmt::Display for Object {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ClassStruct {
+    pub name: String,
+    methods: HashMap<String, Object>,
+}
+
+impl ClassStruct {
+    pub fn new(name: String, methods: HashMap<String, Object>) -> Self {
+        ClassStruct {
+            name,
+            methods,
+        }
+    }
+
+    pub fn instantiate(&self, _interpreter: &Interpreter, _arguments: Vec<Object>, cls: Rc<ClassStruct>) -> Result<Object, Error> {
+        Ok(Object::Instance(Rc::new(InstanceStruct::new(cls))))
+    }
+
+    pub fn find_method(&self, name: String) -> Option<Object> {
+        self.methods.get(&name).cloned()
+    }
+}
+
+impl CallableTrait for ClassStruct {
+    fn call(&self, interpreter: &Interpreter, arguments: &Vec<Object>) -> Result<Object, Error> {
+        Ok(Object::Num(237.0))
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+
+    fn stringify(&self) -> String {
+        self.name.clone()
     }
 }
 

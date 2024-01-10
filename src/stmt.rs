@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 pub enum Stmt {
     Block(Rc<BlockStmt>),
+    Class(Rc<ClassStmt>),
     Expression(Rc<ExpressionStmt>),
     Function(Rc<FunctionStmt>),
     If(Rc<IfStmt>),
@@ -18,6 +19,7 @@ impl PartialEq for Stmt {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Stmt::Block(a), Stmt::Block(b)) => Rc::ptr_eq(a, b),
+            (Stmt::Class(a), Stmt::Class(b)) => Rc::ptr_eq(a, b),
             (Stmt::Expression(a), Stmt::Expression(b)) => Rc::ptr_eq(a, b),
             (Stmt::Function(a), Stmt::Function(b)) => Rc::ptr_eq(a, b),
             (Stmt::If(a), Stmt::If(b)) => Rc::ptr_eq(a, b),
@@ -38,6 +40,7 @@ impl Hash for Stmt {
     where H: Hasher,
     { match self { 
         Stmt::Block(a) => { hasher.write_usize(Rc::as_ptr(a) as usize); }
+        Stmt::Class(a) => { hasher.write_usize(Rc::as_ptr(a) as usize); }
         Stmt::Expression(a) => { hasher.write_usize(Rc::as_ptr(a) as usize); }
         Stmt::Function(a) => { hasher.write_usize(Rc::as_ptr(a) as usize); }
         Stmt::If(a) => { hasher.write_usize(Rc::as_ptr(a) as usize); }
@@ -53,6 +56,7 @@ impl Stmt {
     pub fn accept<T>(&self, wrapper: Rc<Stmt>, stmt_visitor: &dyn StmtVisitor<T>) -> Result<T, Error> {
         match self {
             Stmt::Block(v) => stmt_visitor.visit_block_stmt(wrapper, v),
+            Stmt::Class(v) => stmt_visitor.visit_class_stmt(wrapper, v),
             Stmt::Expression(v) => stmt_visitor.visit_expression_stmt(wrapper, v),
             Stmt::Function(v) => stmt_visitor.visit_function_stmt(wrapper, v),
             Stmt::If(v) => stmt_visitor.visit_if_stmt(wrapper, v),
@@ -66,6 +70,11 @@ impl Stmt {
 
 pub struct BlockStmt {
     pub statements: Rc<Vec<Rc<Stmt>>>,
+}
+
+pub struct ClassStmt {
+    pub name: Token,
+    pub methods: Rc<Vec<Rc<Stmt>>>,
 }
 
 pub struct ExpressionStmt {
@@ -105,6 +114,7 @@ pub struct WhileStmt {
 
 pub trait StmtVisitor<T> {
     fn visit_block_stmt(&self, wrapper: Rc<Stmt>, stmt: &BlockStmt) -> Result<T, Error>;
+    fn visit_class_stmt(&self, wrapper: Rc<Stmt>, stmt: &ClassStmt) -> Result<T, Error>;
     fn visit_expression_stmt(&self, wrapper: Rc<Stmt>, stmt: &ExpressionStmt) -> Result<T, Error>;
     fn visit_function_stmt(&self, wrapper: Rc<Stmt>, stmt: &FunctionStmt) -> Result<T, Error>;
     fn visit_if_stmt(&self, wrapper: Rc<Stmt>, stmt: &IfStmt) -> Result<T, Error>;

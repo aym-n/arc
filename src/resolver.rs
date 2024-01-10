@@ -20,9 +20,26 @@ pub struct Resolver<'a>{
 enum FunctionType {
     None,
     Function,
+    Method,
 }
 
 impl<'a> StmtVisitor<()> for Resolver<'a>{
+    fn visit_class_stmt(&self , _: Rc<Stmt>, stmt: &ClassStmt) -> Result<(), Error> {
+        self.declare(&stmt.name);
+        self.define(&stmt.name);
+
+        for method in stmt.methods.deref() {
+            let declaration = FunctionType::Method;
+            if let Stmt::Function(method) = method.deref() {
+                self.resolve_function(method, declaration);
+            }else{
+                return Err(Error::runtime_error(&stmt.name, "Class method did not resolve to a function."));
+            }
+        }
+
+        Ok(())
+    }
+
     fn visit_return_stmt(&self, _: Rc<Stmt> ,stmt: &ReturnStmt) -> Result<(), Error> {
         if *self.current_function.borrow() == FunctionType::None {
             return Err(Error::runtime_error(&stmt.keyword, "Cannot return from top-level code."));
@@ -81,6 +98,18 @@ impl<'a> StmtVisitor<()> for Resolver<'a>{
 }
 
 impl<'a> ExprVisitor<()> for Resolver<'a>{
+    
+    fn visit_set_expr(&self, _: Rc<Expr>, expr: &SetExpr) -> Result<(), Error> {
+        self.resolve_expr(expr.value.clone());
+        self.resolve_expr(expr.object.clone());
+        Ok(())
+    }
+
+    fn visit_get_expr(&self, _: Rc<Expr>, expr: &GetExpr) -> Result<(), Error> {
+        self.resolve_expr(expr.object.clone());
+        Ok(())
+    }
+
     fn visit_call_expr(&self, _: Rc<Expr>, expr: &CallExpr) -> Result<(), Error> {
         self.resolve_expr(expr.callee.clone());
 
