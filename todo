@@ -1,0 +1,7 @@
+- [ ] Add proper error handling
+- [ ] Implement bitwise operators
+- [ ] Implement modulo operator
+- [ ] Add break statement
+- [ ] Implement print as a function instead of a statement
+- [ ] Implement multi-line comments
+- [ ] Implement ternary operators
