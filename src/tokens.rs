@@ -1,5 +1,4 @@
 use std::fmt;
-use crate::callable::Callable;
 use crate::errors::*;
 use crate::interpreter::Interpreter;
 use crate::callable::*;

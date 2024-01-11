@@ -257,11 +257,11 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_stmt(&self, stmt: Rc<Stmt>){
-        stmt.accept(stmt.clone(), self);
+        let _ = stmt.accept(stmt.clone(), self);
     }
 
     fn resolve_expr(&self, expr: Rc<Expr>){
-        expr.accept(expr.clone(), self);
+        let _ = expr.accept(expr.clone(), self);
     }
 
     fn begin_scope(&self) {

@@ -53,7 +53,7 @@ impl Function {
     }
 
     pub fn bind(&self, instance: &Object) -> Object {
-        let mut e = RefCell::new(Environment::new_with_enclosing(Rc::clone(&self.closure)));
+        let e = RefCell::new(Environment::new_with_enclosing(Rc::clone(&self.closure)));
         e.borrow_mut().define("this".to_string(), instance.clone());
         Object::Function(Rc::new(Self {
             name: self.name.clone(),

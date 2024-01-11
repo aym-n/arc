@@ -39,7 +39,7 @@ mod instance;
 
 fn eval(source: &str) -> Result<(), Error> {
     let lexer = Lexer::new(source.to_string());
-    let mut tokens: Vec<Token> = lexer.collect();
+    let tokens: Vec<Token> = lexer.collect();
 
     let mut parser = Parser::new(tokens);
     let statements = parser.parse();
@@ -67,7 +67,7 @@ fn repl() {
             "@" => interpreter.print_env(),
             _ => {
                 let lexer = Lexer::new(input);
-                let mut tokens: Vec<Token> = lexer.collect();
+                let tokens: Vec<Token> = lexer.collect();
 
                 let mut parser = Parser::new(tokens);
                 let statements = parser.parse();
@@ -75,7 +75,7 @@ fn repl() {
                 match statements {
                     Ok(statements) => {
                         let s = Rc::new(statements);
-                        let mut resolver = Resolver::new(&interpreter);
+                        let resolver = Resolver::new(&interpreter);
                         resolver.resolve(&Rc::clone(&s));
 
                         if resolver.success() {
@@ -85,7 +85,7 @@ fn repl() {
                         }
 
                     }
-                    Err(e) => println!("Error"),
+                    Err(_) => std::process::exit(2),
                 }
             }
         }

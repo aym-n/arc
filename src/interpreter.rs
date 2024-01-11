@@ -189,7 +189,7 @@ impl ExprVisitor<Object> for Interpreter {
         self.look_up_variable(&expr.keyword, wrapper)
     }
 
-    fn visit_set_expr(&self, wrapper: Rc<Expr>, expr: &SetExpr) -> Result<Object, Error> {
+    fn visit_set_expr(&self, _wrapper: Rc<Expr>, expr: &SetExpr) -> Result<Object, Error> {
         let object = self.evaluate(expr.object.clone())?;
 
         if let Object::Instance(inst) = object {
@@ -204,7 +204,7 @@ impl ExprVisitor<Object> for Interpreter {
         ))
     }
 
-    fn visit_get_expr(&self, wrapper: Rc<Expr>, expr: &GetExpr) -> Result<Object, Error> {
+    fn visit_get_expr(&self, _wrapper: Rc<Expr>, expr: &GetExpr) -> Result<Object, Error> {
         let object = self.evaluate(expr.object.clone())?;
 
         if let Object::Instance(inst) = object {
