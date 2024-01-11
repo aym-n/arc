@@ -181,7 +181,7 @@ impl<'a> Iterator for &'a mut Lexer {
 
             '/' => Some(self.add_token(TokenKind::Slash)),
 
-            '#' => self.comment(),
+            '~' => self.comment(),
 
             '"' => self.string(),
 

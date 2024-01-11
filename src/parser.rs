@@ -516,6 +516,10 @@ impl Parser {
                 expression: Rc::new(expr),
             })));
         }
+        
+        if self.match_token(vec![TokenKind::Comment]) {
+            return self.primary();
+        }
 
         Err(Error::parse_error(&self.peek(), "Expect expression."))
     }

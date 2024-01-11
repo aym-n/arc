@@ -23,10 +23,6 @@ impl fmt::Debug for Native {
     }
 }
 
-
-
-
-
 pub struct NativeClock {}
 
 impl CallableTrait for NativeClock {

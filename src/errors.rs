@@ -58,9 +58,9 @@ impl Error {
             Error::ParseError { token, message }
             | Error::RuntimeError { token, message } => {
                 if token.kind == TokenKind::EOF {
-                    eprintln!("{} at end {}", token.line, message);
+                    eprintln!("[line {}] Error at end: {}", token.line, message)
                 } else {
-                    eprintln!("line {} at '{}' {}", token.line, token.lexeme, message);
+                    eprintln!("[line {}] Error at '{}': {}", token.line, token.lexeme, message);
                 }
             }
             Error::SystemError { message } => {
