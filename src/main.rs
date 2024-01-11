@@ -42,20 +42,19 @@ fn eval(source: &str) -> Result<(), Error> {
 
 fn repl() {
     let interpreter = Interpreter::new();
+    println!(
+        r#" 
+        █████╗ ██████╗  ██████╗
+        ██╔══██╗██╔══██╗██╔════╝
+        ███████║██████╔╝██║     
+        ██╔══██║██╔══██╗██║     
+        ██║  ██║██║  ██║╚██████╗
+        ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ 
+                [v1.1.0]
+        "#
+    );            
     loop {
         let mut input = String::new();
-        //ascii header
-        println!(
-            r#" 
-            █████╗ ██████╗  ██████╗
-            ██╔══██╗██╔══██╗██╔════╝
-            ███████║██████╔╝██║     
-            ██╔══██║██╔══██╗██║     
-            ██║  ██║██║  ██║╚██████╗
-            ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ 
-                    [v1.1.0]
-            "#
-        );            
         print!("arc~> ");
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
