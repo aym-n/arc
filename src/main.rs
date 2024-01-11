@@ -1,55 +1,41 @@
-use std::io::Write;
-
+mod callable;
+mod enviroment;
+mod errors;
+mod expr;
+mod functions;
+mod instance;
+mod interpreter;
 mod lexer;
-use crate::lexer::Lexer;
-
+mod native_functions;
+mod parser;
+mod resolver;
+mod stmt;
 mod tokens;
+
+use crate::errors::*;
+use crate::lexer::Lexer;
+use interpreter::Interpreter;
+use parser::*;
+use resolver::*;
+use std::io::Write;
+use std::rc::Rc;
 use tokens::*;
 
-mod errors;
-use crate::errors::*;
-
-// mod ast_printer;
-// use crate::ast_printer::AstPrinter;
-
-mod expr;
-
-mod parser;
-use parser::*;
-
-mod interpreter;
-use interpreter::Interpreter;
-
-mod stmt;
-
-mod enviroment;
-
-mod callable;
-
-mod native_functions;
-
-mod functions;
-
-mod resolver;
-use resolver::*;
-
-use std::rc::Rc;
-
-mod instance;
-
 fn eval(source: &str) -> Result<(), Error> {
-    let lexer = Lexer::new(source.to_string());
+    let mut lexer = Lexer::new(source.to_string());
     let tokens: Vec<Token> = lexer.collect();
 
-    let mut parser = Parser::new(tokens);
-    let statements = parser.parse();
+    if lexer.success() {
+        let mut parser = Parser::new(tokens);
+        let statements = parser.parse();
 
-    let interpreter = Interpreter::new();
-    let s = Rc::new(statements?);
-    let resolver = Resolver::new(&interpreter);
-    resolver.resolve(&Rc::clone(&s));
-    if resolver.success(){
-        interpreter.interpret(&Rc::clone(&s));
+        let interpreter = Interpreter::new();
+        let s = Rc::new(statements?);
+        let resolver = Resolver::new(&interpreter);
+        resolver.resolve(&Rc::clone(&s));
+        if resolver.success() {
+            interpreter.interpret(&Rc::clone(&s));
+        }
     }
     Ok(())
 }
@@ -58,34 +44,48 @@ fn repl() {
     let interpreter = Interpreter::new();
     loop {
         let mut input = String::new();
-        print!(">");
+        //ascii header
+        println!(
+            r#" 
+            █████╗ ██████╗  ██████╗
+            ██╔══██╗██╔══██╗██╔════╝
+            ███████║██████╔╝██║     
+            ██╔══██║██╔══██╗██║     
+            ██║  ██║██║  ██║╚██████╗
+            ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ 
+                    [v1.1.0]
+            "#
+        );            
+        print!("arc~> ");
         std::io::stdout().flush().unwrap();
         std::io::stdin().read_line(&mut input).unwrap();
-
+        input = input.trim_end_matches('\n').to_string();
         match input.trim() {
             "exit" => std::process::exit(0),
+            "clear" => print!("{}[2J", 27 as char),
             "@" => interpreter.print_env(),
             _ => {
-                let lexer = Lexer::new(input);
+                let mut lexer = Lexer::new(input);
                 let tokens: Vec<Token> = lexer.collect();
 
-                let mut parser = Parser::new(tokens);
-                let statements = parser.parse();
+                if lexer.success() {
+                    let mut parser = Parser::new(tokens);
+                    let statements = parser.parse();
 
-                match statements {
-                    Ok(statements) => {
-                        let s = Rc::new(statements);
-                        let resolver = Resolver::new(&interpreter);
-                        resolver.resolve(&Rc::clone(&s));
+                    match statements {
+                        Ok(statements) => {
+                            let s = Rc::new(statements);
+                            let resolver = Resolver::new(&interpreter);
+                            resolver.resolve(&Rc::clone(&s));
 
-                        if resolver.success() {
-                            if !interpreter.interpret(&Rc::clone(&s)) {
-                                std::process::exit(1);
+                            if resolver.success() {
+                                if !interpreter.interpret(&Rc::clone(&s)) {
+                                    std::process::exit(1);
+                                }
                             }
                         }
-
+                        Err(_) => std::process::exit(2),
                     }
-                    Err(_) => std::process::exit(2),
                 }
             }
         }

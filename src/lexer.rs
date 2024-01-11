@@ -1,10 +1,11 @@
 use crate::tokens::*;
-
+use crate::errors::*;
 pub struct Lexer {
     input: String,
     start: usize,
     current: usize,
     line: usize,
+    pub had_error: bool,
 }
 
 impl Lexer {
@@ -14,6 +15,7 @@ impl Lexer {
             start: 0,
             current: 0,
             line: 1,
+            had_error: false,
         }
     }
 
@@ -73,7 +75,12 @@ impl Lexer {
         }
 
         if self.is_at_end() {
-            eprintln!("{}: Unterminated string.", self.line);
+            Error::lexer_error(
+                &self.input[self.start..self.current].to_string(),
+                &self.line.to_string(),
+                "unterminated string.",
+            );
+            self.had_error = true;
             return None;
         }
 
@@ -105,9 +112,13 @@ impl Lexer {
     fn is_at_end(&self) -> bool {
         self.current > self.input.len() - 1
     }
+
+    pub fn success(&self) -> bool {
+        !self.had_error
+    }
 }
 
-impl Iterator for Lexer {
+impl<'a> Iterator for &'a mut Lexer {
     type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_at_end() {
@@ -212,7 +223,12 @@ impl Iterator for Lexer {
             }
 
             _ => {
-                eprintln!("{}: Unexpected character: {}", self.line, self.current_char());
+                Error::lexer_error(
+                    &self.input[self.start..self.current].to_string(),
+                    &self.line.to_string(),
+                    "unexpected character.",
+                );
+                self.had_error = true;
                 None
             }
         }

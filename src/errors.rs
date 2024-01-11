@@ -2,6 +2,7 @@ use crate::tokens::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Error {
+    LexerError{ lexeme: String , line: String, message: String},
     ParseError { token: Token, message: String },
     RuntimeError { token: Token, message: String },
     SystemError { message: String },
@@ -9,6 +10,16 @@ pub enum Error {
 }
 
 impl Error {
+    pub fn lexer_error(lexeme: &str, line: &str, message: &str) -> Error {
+        let err = Error::LexerError {
+            lexeme: lexeme.to_string(),
+            line: line.to_string(),
+            message: message.to_string(),
+        };
+        err.report("");
+        err
+    }
+
     pub fn return_value(value: Object) -> Error {
         Error::Return { value }
     }
@@ -41,6 +52,9 @@ impl Error {
 
     pub fn report(&self, _loc: &str) {
         match self {
+            Error::LexerError { lexeme, line, message } => {
+                eprintln!("[line {}] Error {}: {}", line, lexeme, message);
+            }
             Error::ParseError { token, message }
             | Error::RuntimeError { token, message } => {
                 if token.kind == TokenKind::EOF {
