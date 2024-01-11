@@ -81,8 +81,8 @@ Arc features a single numeric type: double-precision floating point. This choice
 Strings in Arc are enclosed in double quotes and support various literals.
 ```
 `"I am a string";
-"";      // The empty string.
-"123";   // This is a string, not a number.
+"";      ~ The empty string.
+"123";   ~ This is a string, not a number.
 ```
 ### Nil
 Representing "no value," nil is the built-in value that often shows up uninvited. While it is called "null" in many languages, Arc spells it as nil.
@@ -127,14 +127,14 @@ Additionally, Arc allows testing values of different types for equality or inequ
 ### Logical Operators
 
 Logical operators in Arc include the prefix `!` for negation, as well as `and` and `or` for conjunction and disjunction:
-```!true;  // false.
-!false; // true.
+```!true;  ~ false.
+!false; ~ true.
 
-true and false; // false.
-true and true;  // true.
+true and false; ~ false.
+true and true;  ~ true.
 
-false or false; // false.
-true or false;  // true.`
+false or false; ~ false.
+true or false;  ~ true.`
 ```
 These operators also serve as control flow structures, with short-circuiting behavior.
 
@@ -181,9 +181,9 @@ var iAmNil;
 Once declared, you can naturally access and assign values to a variable using its name.
 ```
 var breakfast = "bagels";
-print breakfast; // "bagels".
+print breakfast; ~ "bagels".
 breakfast = "beignets";
-print breakfast; // "beignets".
+print breakfast; ~ "beignets".
 ```
 It's worth noting that variable scope follows familiar patterns, akin to expectations from languages like C or Java.
 ## Control Flow
@@ -305,7 +305,7 @@ someFunction(Breakfast);
 To create instances, Arc uses the class itself as a factory function. Invoking a class produces a new instance;
 ```
 var breakfast = Breakfast();
-print breakfast; // "Breakfast instance".
+print breakfast; ~ "Breakfast instance".
 ```
 Classes in Arc can have fields to encapsulate state. You can freely add properties to objects:
 ```
@@ -319,7 +319,7 @@ class Breakfast {
     print "Enjoy your " + this.meat + " and " +
         this.bread + ", " + who + ".";
   }
-  // ...
+  ~ ...
 }
 ```
 ### **Instantiation and Initialization**
@@ -335,11 +335,11 @@ To ensure objects are in a valid state upon creation, define an initializer. If 
     this.meat = meat;
     this.bread = bread;
   }
-  // ...
+  ~ ...
 }
 var baconAndToast = Breakfast("bacon", "toast");
 baconAndToast.serve("Dear Reader");
-// "Enjoy your bacon and toast, Dear Reader."` 
+~ "Enjoy your bacon and toast, Dear Reader."` 
 ```
 ### **Inheritance**
 Arc supports single inheritance. Use the less-than (`<`) operator to specify a superclass when declaring a class.
