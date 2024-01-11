@@ -4,6 +4,3 @@
 #these files are generated on build
 src/expr.rs
 src/stmt.rs
-
-#dummy arc file for testing
-main.arc
